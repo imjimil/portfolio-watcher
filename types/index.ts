@@ -59,6 +59,8 @@ export interface WatchlistItem {
   changePercent: number;
   targetPrice?: number;
   notes?: string;
+  dateAdded?: string; // When added to watchlist
+  category?: string; // Custom category/group
 }
 
 export interface Alert {

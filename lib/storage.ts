@@ -273,6 +273,8 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
       changePercent: Number(w.change_percent) || 0,
       targetPrice: w.target_price ? Number(w.target_price) : undefined,
       notes: w.notes || undefined,
+      dateAdded: w.created_at || undefined,
+      category: w.category || undefined,
     }));
   } catch (error) {
     console.error('Error fetching watchlist:', error);
@@ -285,33 +287,76 @@ export async function saveWatchlist(watchlist: WatchlistItem[]): Promise<void> {
     const user = await getCurrentUser();
     const supabase = createClient();
 
-    // Delete all existing watchlist items
-    await supabase
+    // Get current watchlist from DB to find items to delete
+    const { data: existing } = await supabase
       .from('watchlist')
-      .delete()
+      .select('symbol')
       .eq('user_id', user.id);
 
-    // Insert new watchlist items
-    if (watchlist.length > 0) {
+    const existingSymbols = new Set((existing || []).map((w: any) => w.symbol));
+    const currentSymbols = new Set(watchlist.map(w => w.symbol));
+
+    // Delete items that are no longer in the watchlist
+    const toDelete = Array.from(existingSymbols).filter(s => !currentSymbols.has(s));
+    if (toDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('watchlist')
+        .delete()
+        .eq('user_id', user.id)
+        .in('symbol', toDelete);
+
+      if (deleteError) {
+        console.error('Error deleting watchlist items:', deleteError);
+        throw deleteError;
+      }
+    }
+
+    // Upsert (update or insert) each item individually to avoid race conditions
+    for (const item of watchlist) {
+      const itemData = {
+        user_id: user.id,
+        symbol: item.symbol,
+        name: item.name,
+        current_price: item.currentPrice,
+        change: item.change,
+        change_percent: item.changePercent,
+        target_price: item.targetPrice || null,
+        notes: item.notes || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Use upsert with onConflict to handle duplicates gracefully
       const { error } = await supabase
         .from('watchlist')
-        .insert(
-          watchlist.map(w => ({
-            user_id: user.id,
-            symbol: w.symbol,
-            name: w.name,
-            current_price: w.currentPrice,
-            change: w.change,
-            change_percent: w.changePercent,
-            target_price: w.targetPrice || null,
-            notes: w.notes || null,
-          }))
-        );
+        .upsert(itemData, {
+          onConflict: 'user_id,symbol',
+          ignoreDuplicates: false,
+        });
 
-      if (error) throw error;
+      if (error) {
+        // If it's a duplicate key error, that's okay - just skip it
+        if (error.code === '23505') {
+          // Duplicate key - try to update instead
+          const { error: updateError } = await supabase
+            .from('watchlist')
+            .update(itemData)
+            .eq('user_id', user.id)
+            .eq('symbol', item.symbol);
+
+          if (updateError) {
+            console.error(`Error updating watchlist item ${item.symbol}:`, updateError);
+          }
+        } else {
+          console.error(`Error upserting watchlist item ${item.symbol}:`, error);
+          throw error;
+        }
+      }
     }
   } catch (error) {
     console.error('Error saving watchlist:', error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to save watchlist: ${error.message}`);
+    }
     throw error;
   }
 }

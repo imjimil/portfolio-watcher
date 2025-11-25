@@ -133,7 +133,7 @@ export default function Navbar() {
                       <button
                         onClick={() => {
                           setProfileMenuOpen(false);
-                          // Add profile/settings page navigation here if needed
+                          router.push('/profile');
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
@@ -143,7 +143,7 @@ export default function Navbar() {
                       <button
                         onClick={() => {
                           setProfileMenuOpen(false);
-                          // Add settings page navigation here if needed
+                          router.push('/profile');
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >

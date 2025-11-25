@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { Transaction } from '@/types';
+import { Transaction, Portfolio } from '@/types';
 import { getStockData } from '@/lib/stockService';
 import { cn } from '@/lib/utils';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (transaction: Omit<Transaction, 'id'>) => void;
+  onAdd: (transaction: Omit<Transaction, 'id'>, portfolioId: string) => void;
   onEdit?: (id: string, transaction: Omit<Transaction, 'id'>) => void;
   existingSymbols?: string[];
   editingTransaction?: Transaction | null;
+  portfolios?: Portfolio[];
+  activePortfolioId?: string | null;
 }
 
 export default function AddTransactionModal({
@@ -22,6 +24,8 @@ export default function AddTransactionModal({
   onEdit,
   existingSymbols = [],
   editingTransaction = null,
+  portfolios = [],
+  activePortfolioId = null,
 }: AddTransactionModalProps) {
   const isEditing = !!editingTransaction;
   const [symbol, setSymbol] = useState('');
@@ -31,8 +35,18 @@ export default function AddTransactionModal({
   const [fees, setFees] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>(activePortfolioId || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Update selected portfolio when activePortfolioId changes
+  useEffect(() => {
+    if (activePortfolioId) {
+      setSelectedPortfolioId(activePortfolioId);
+    } else if (portfolios.length > 0) {
+      setSelectedPortfolioId(portfolios[0].id);
+    }
+  }, [activePortfolioId, portfolios]);
 
   useEffect(() => {
     if (isOpen) {
@@ -90,6 +104,12 @@ export default function AddTransactionModal({
       return;
     }
 
+    // When adding (not editing), require portfolio selection if multiple portfolios exist
+    if (!isEditing && portfolios.length > 1 && !selectedPortfolioId) {
+      setError('Please select a portfolio');
+      return;
+    }
+
     const transaction: Omit<Transaction, 'id'> = {
       symbol: symbol.toUpperCase().trim(),
       type,
@@ -103,7 +123,13 @@ export default function AddTransactionModal({
     if (isEditing && editingTransaction && onEdit) {
       onEdit(editingTransaction.id, transaction);
     } else {
-      onAdd(transaction);
+      // Use selected portfolio or active portfolio or first portfolio
+      const portfolioId = selectedPortfolioId || activePortfolioId || portfolios[0]?.id;
+      if (!portfolioId) {
+        setError('No portfolio available');
+        return;
+      }
+      onAdd(transaction, portfolioId);
     }
     onClose();
   };
@@ -132,6 +158,25 @@ export default function AddTransactionModal({
             </div>
           )}
 
+          {/* Portfolio Selector - Only show when adding (not editing) and multiple portfolios exist */}
+          {!isEditing && portfolios.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Portfolio *</label>
+              <select
+                value={selectedPortfolioId}
+                onChange={(e) => setSelectedPortfolioId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                {portfolios.map((portfolio) => (
+                  <option key={portfolio.id} value={portfolio.id}>
+                    {portfolio.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium mb-2">Symbol *</label>
             <div className="flex gap-2">
@@ -139,6 +184,12 @@ export default function AddTransactionModal({
                 type="text"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && symbol.trim() && !loading) {
+                    e.preventDefault(); // Prevent form submission
+                    handleFetchPrice();
+                  }
+                }}
                 placeholder="AAPL"
                 className="flex-1 px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required

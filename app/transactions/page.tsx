@@ -20,6 +20,7 @@ function uuid() {
 }
 
 export default function TransactionsPage() {
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [activePortfolio, setActivePortfolio] = useState<Portfolio | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,10 +31,19 @@ export default function TransactionsPage() {
     const loadPortfolio = async () => {
       try {
         const loadedPortfolios = await getPortfolios();
+        // Load transactions for all portfolios
+        const portfoliosWithTransactions = await Promise.all(
+          loadedPortfolios.map(async (p) => {
+            const fullPortfolio = await getPortfolio(p.id);
+            return fullPortfolio || p;
+          })
+        );
+        setPortfolios(portfoliosWithTransactions);
+        
         const activeId = await getActivePortfolioId();
         const portfolio = activeId 
-          ? await getPortfolio(activeId) || loadedPortfolios[0]
-          : loadedPortfolios[0];
+          ? portfoliosWithTransactions.find(p => p.id === activeId) || portfoliosWithTransactions[0]
+          : portfoliosWithTransactions[0];
         
         if (portfolio) {
           setActivePortfolio(portfolio);
@@ -83,8 +93,10 @@ export default function TransactionsPage() {
     }
   }, [activePortfolio]);
 
-  const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>) => {
-    if (!activePortfolio) return;
+  const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>, portfolioId: string) => {
+    // Find the portfolio to add the transaction to
+    const targetPortfolio = portfolios.find(p => p.id === portfolioId) || activePortfolio;
+    if (!targetPortfolio) return;
 
     const newTransaction: Transaction = {
       ...transactionData,
@@ -92,14 +104,21 @@ export default function TransactionsPage() {
     };
 
     const updatedPortfolio: Portfolio = {
-      ...activePortfolio,
-      transactions: [...activePortfolio.transactions, newTransaction],
+      ...targetPortfolio,
+      transactions: [...targetPortfolio.transactions, newTransaction],
       updatedAt: new Date().toISOString(),
     };
 
     await savePortfolio(updatedPortfolio);
-    setActivePortfolio(updatedPortfolio);
-    updateHoldings();
+    
+    // If this is the active portfolio, update it
+    if (targetPortfolio.id === activePortfolio?.id) {
+      setActivePortfolio(updatedPortfolio);
+      updateHoldings();
+    }
+    
+    // Update the portfolios array
+    setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
   };
 
   const handleDeleteTransaction = async (transactionId: string) => {
@@ -199,6 +218,8 @@ export default function TransactionsPage() {
         onEdit={handleUpdateTransaction}
         existingSymbols={holdings.map(h => h.symbol)}
         editingTransaction={editingTransaction}
+        portfolios={portfolios}
+        activePortfolioId={activePortfolio?.id || null}
       />
     </div>
   );

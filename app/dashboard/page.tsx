@@ -273,8 +273,10 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartPeriod, activePortfolio?.transactions.length]);
 
-  const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>) => {
-    if (!activePortfolio) return;
+  const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>, portfolioId: string) => {
+    // Find the portfolio to add the transaction to
+    const targetPortfolio = portfolios.find(p => p.id === portfolioId) || activePortfolio;
+    if (!targetPortfolio) return;
 
     const newTransaction: Transaction = {
       ...transactionData,
@@ -282,18 +284,23 @@ export default function Dashboard() {
     };
 
     const updatedPortfolio: Portfolio = {
-      ...activePortfolio,
-      transactions: [...activePortfolio.transactions, newTransaction],
+      ...targetPortfolio,
+      transactions: [...targetPortfolio.transactions, newTransaction],
       updatedAt: new Date().toISOString(),
     };
 
     await savePortfolio(updatedPortfolio);
-    setActivePortfolio(updatedPortfolio);
+    
+    // If this is the active portfolio, update it
+    if (targetPortfolio.id === activePortfolio?.id) {
+      setActivePortfolio(updatedPortfolio);
+      // Reset the hash so updatePortfolio will run
+      lastTransactionHashRef.current = '';
+      updatePortfolio(updatedPortfolio);
+    }
+    
     // Update the portfolios array with the updated portfolio (including new transaction)
     setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
-    // Reset the hash so updatePortfolio will run
-    lastTransactionHashRef.current = '';
-    updatePortfolio(updatedPortfolio);
   };
 
   const handleCreatePortfolio = async (name: string, description?: string) => {
@@ -742,6 +749,8 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)}
         onAdd={handleAddTransaction}
         existingSymbols={holdings.map(h => h.symbol)}
+        portfolios={portfolios}
+        activePortfolioId={activePortfolio?.id || null}
       />
 
       <CreatePortfolioModal

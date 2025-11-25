@@ -10,20 +10,12 @@ const CustomTooltip = ({ active, payload, label, period, currentValue, costBasis
     const data = payload[0].payload;
     const value = data.value;
     
-    // Calculate percentage based on period
-    let gainPercent = 0;
-    if (period === 'all' && currentValue !== undefined && costBasis !== undefined && costBasis > 0) {
-      // For "all time", show total gain/loss from cost basis
-      gainPercent = ((value - costBasis) / costBasis) * 100;
-    } else {
-      // For all other periods, calculate from start point of the graph
-      const startValue = data.startValue || 0;
-      if (startValue > 0) {
-        gainPercent = ((value - startValue) / startValue) * 100;
-      }
-    }
+    // Show percentage change from graph start (normalized to 0% at start)
+    // This reflects only gain/loss movement, not capital additions
+    const percentChange = data.percentChangeFromStart || 0;
+    const gainLossAmount = data.gainLossAmount || 0;
     
-    const isPositive = gainPercent >= 0;
+    const isPositive = percentChange >= 0;
     
     // Format date from dateFull or label
     let formattedDate = label;
@@ -43,15 +35,20 @@ const CustomTooltip = ({ active, payload, label, period, currentValue, costBasis
     }
     
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+      <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg p-2">
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
           {formattedDate}
         </p>
-        <p className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
-          {formatCurrency(value)}
-        </p>
-        <p className={`text-sm font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-          {isPositive ? '+' : ''}{gainPercent.toFixed(2)}%
+        <div className="flex items-baseline gap-2">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {formatCurrency(value)}
+          </p>
+          <p className={`text-xs font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            {isPositive ? '+' : ''}{percentChange.toFixed(2)}%
+          </p>
+        </div>
+        <p className={`text-xs font-medium mt-0.5 ${gainLossAmount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          {gainLossAmount >= 0 ? '+' : ''}{formatCurrency(gainLossAmount)}
         </p>
       </div>
     );
@@ -90,6 +87,9 @@ export default function PortfolioChart({
   const endValue = data[data.length - 1]?.price || 0;
   const endCostBasis = data[data.length - 1]?.volume || 0;
   
+  // Calculate start gain percentage for normalization
+  const startGainPercent = startCostBasis > 0 ? ((startValue - startCostBasis) / startCostBasis) * 100 : 0;
+  
   // Use actual dollar values for the chart
   // Parse date string as local date to avoid timezone issues
   // For intraday (1d period), the date string includes time (YYYY-MM-DD HH:MM)
@@ -125,12 +125,19 @@ export default function PortfolioChart({
     const costBasis = item.volume || 0;
     const value = item.price;
     
+    // Calculate gain percentage at this point
+    const gainPercentAtPoint = costBasis > 0 ? ((value - costBasis) / costBasis) * 100 : 0;
+    // Calculate change from start (normalized to 0% at start)
+    const percentChangeFromStart = gainPercentAtPoint - startGainPercent;
+    
     return {
       date: displayDate,
       dateFull: dateFull, // Keep original date/datetime string for tooltip
       value: item.price, // Use actual dollar value
       costBasis: costBasis, // Cost basis stored in volume field
-      startValue: startValue, // Store start value for percentage calculation
+      gainPercent: gainPercentAtPoint, // Actual gain/loss percentage from cost basis
+      percentChangeFromStart: percentChangeFromStart, // Change from graph start (normalized)
+      gainLossAmount: value - costBasis, // Actual gain/loss amount
     };
   });
 

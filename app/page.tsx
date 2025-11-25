@@ -295,16 +295,16 @@ export default function Dashboard() {
           <>
             {/* Portfolio Header */}
             <div className="mb-6 sm:mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
+              <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 mb-4">
+                <div className="min-w-0 flex-1 pl-0.5 sm:pl-0">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
                     {activePortfolio?.name || 'My Portfolio'}
                   </h2>
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="hidden sm:block text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
                     {activePortfolio?.description || 'Track your investments'}
                   </p>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                   {activePortfolio && (
                     <button
                       onClick={() => {
@@ -392,19 +392,16 @@ export default function Dashboard() {
                           // For "all time", show total gain/loss from cost basis
                           amountChange = activePortfolio.totalValue - activePortfolio.totalCost;
                           rangePercentChange = ((activePortfolio.totalValue - activePortfolio.totalCost) / activePortfolio.totalCost) * 100;
-                        } else if (chartPeriod === '1d') {
-                          // For 1d (intraday), compare opening to current (today's movement)
-                          if (startValue > 0) {
-                            amountChange = endValue - startValue;
-                            rangePercentChange = ((endValue - startValue) / startValue) * 100;
-                          }
                         } else {
-                          // For other periods, calculate change in gain percentage
+                          // For all periods, calculate change in gain percentage (normalized to 0% at start)
+                          // This shows only gain/loss movement, not capital additions
                           const startGainPercent = startCostBasis > 0 ? ((startValue - startCostBasis) / startCostBasis) * 100 : 0;
                           const endGainPercent = endCostBasis > 0 ? ((endValue - endCostBasis) / endCostBasis) * 100 : 0;
                           rangePercentChange = endGainPercent - startGainPercent;
-                          // Calculate amount change based on the change in portfolio value
-                          amountChange = endValue - startValue;
+                          // Show change in gain/loss amount from start (consistent with percentage)
+                          const startGainLoss = startValue - startCostBasis;
+                          const endGainLoss = endValue - endCostBasis;
+                          amountChange = endGainLoss - startGainLoss;
                         }
                         
                         const isPositive = amountChange >= 0;
@@ -464,41 +461,44 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Allocation Chart */}
-              {holdings.length > 0 && (
-                <div className="rounded-lg border bg-white dark:bg-gray-800 p-3 sm:p-4 lg:p-6">
-                  <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Portfolio Allocation</h3>
-                  <AllocationChart holdings={holdings} />
-                </div>
-              )}
-            </div>
+              {/* Allocation Chart and Recent Transactions - Side by side on mobile */}
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-6">
+                {/* Allocation Chart */}
+                {holdings.length > 0 && (
+                  <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
+                    <h3 className="text-xs sm:text-base lg:text-lg font-semibold mb-2 sm:mb-3 lg:mb-4">Portfolio Allocation</h3>
+                    <div className="scale-75 sm:scale-100 origin-top-left">
+                      <AllocationChart holdings={holdings} />
+                    </div>
+                  </div>
+                )}
 
-            {/* Recent Transactions Summary */}
-            {activePortfolio && activePortfolio.transactions.length > 0 && (
-              <div className="rounded-lg border bg-white dark:bg-gray-800 p-3 sm:p-4 lg:p-6">
-                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Recent Transactions</h3>
-                <div className="space-y-2">
+                {/* Recent Transactions Summary */}
+                {activePortfolio && activePortfolio.transactions.length > 0 && (
+                  <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
+                    <h3 className="text-xs sm:text-base lg:text-lg font-semibold mb-2 sm:mb-3 lg:mb-4">Recent Transactions</h3>
+                <div className="space-y-1.5 sm:space-y-2">
                   {activePortfolio.transactions
-                    .slice(-5)
+                    .slice(-3)
                     .reverse()
                     .map((transaction) => (
                       <div
                         key={transaction.id}
-                        className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg gap-2"
+                        className="flex items-center justify-between p-1.5 sm:p-2 lg:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg gap-1.5 sm:gap-2"
                       >
-                        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-4 min-w-0 flex-1">
                           <div className="min-w-0">
-                            <div className="text-sm sm:text-base font-medium truncate">{transaction.symbol}</div>
-                            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            <div className="text-xs sm:text-sm lg:text-base font-medium truncate">{transaction.symbol}</div>
+                            <div className="text-[10px] sm:text-xs lg:text-sm text-gray-500 dark:text-gray-400">
                               {(() => {
                                 const [year, month, day] = transaction.date.split('-').map(Number);
-                                return new Date(year, month - 1, day).toLocaleDateString();
+                                return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                               })()}
                             </div>
                           </div>
-                          <div className="text-xs sm:text-sm flex-shrink-0">
+                          <div className="text-[10px] sm:text-xs lg:text-sm flex-shrink-0">
                             <span
-                              className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded ${
+                              className={`px-1 sm:px-1.5 lg:px-2 py-0.5 rounded ${
                                 transaction.type === 'buy'
                                   ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                   : transaction.type === 'sell'
@@ -511,18 +511,20 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <div className="text-xs sm:text-sm font-medium">
+                          <div className="text-[10px] sm:text-xs lg:text-sm font-medium">
                             {transaction.quantity} @ {formatCurrency(transaction.price)}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                             {formatCurrency(transaction.quantity * transaction.price)}
                           </div>
                         </div>
                       </div>
                     ))}
                 </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </>
         )}
       </main>

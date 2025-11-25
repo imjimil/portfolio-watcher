@@ -54,67 +54,118 @@ export default function Dashboard() {
   const isUpdatingRef = useRef(false);
   const lastTransactionHashRef = useRef<string>('');
 
-  // Load portfolios on mount
-  useEffect(() => {
-    const loadPortfolios = async () => {
-      try {
-        const loadedPortfolios = await getPortfolios();
-        // Load transactions for all portfolios
-        const portfoliosWithTransactions = await Promise.all(
-          loadedPortfolios.map(async (p) => {
-            const fullPortfolio = await getPortfolio(p.id);
-            if (fullPortfolio) {
-              return fullPortfolio;
-            }
-            // Fallback: if getPortfolio fails, still try to load transactions
-            const transactions = await getTransactions(p.id);
-            return {
-              ...p,
-              transactions: transactions || [],
-            };
-          })
-        );
-        setPortfolios(portfoliosWithTransactions);
-
-        const activeId = await getActivePortfolioId();
-        if (activeId) {
-          const portfolio = portfoliosWithTransactions.find(p => p.id === activeId);
-          if (portfolio) {
-            setActivePortfolio(portfolio);
-          } else if (portfoliosWithTransactions.length > 0) {
-            setActivePortfolio(portfoliosWithTransactions[0]);
-            await setActivePortfolioId(portfoliosWithTransactions[0].id);
+  // Load portfolios function
+  const loadPortfolios = useCallback(async () => {
+    try {
+      const loadedPortfolios = await getPortfolios();
+      // Load transactions for all portfolios
+      const portfoliosWithTransactions = await Promise.all(
+        loadedPortfolios.map(async (p) => {
+          const fullPortfolio = await getPortfolio(p.id);
+          if (fullPortfolio) {
+            return fullPortfolio;
           }
+          // Fallback: if getPortfolio fails, still try to load transactions
+          const transactions = await getTransactions(p.id);
+          return {
+            ...p,
+            transactions: transactions || [],
+          };
+        })
+      );
+      setPortfolios(portfoliosWithTransactions);
+
+      const activeId = await getActivePortfolioId();
+      if (activeId) {
+        const portfolio = portfoliosWithTransactions.find(p => p.id === activeId);
+        if (portfolio) {
+          setActivePortfolio(portfolio);
+          // Reset hash to force recalculation
+          lastTransactionHashRef.current = '';
         } else if (portfoliosWithTransactions.length > 0) {
           setActivePortfolio(portfoliosWithTransactions[0]);
           await setActivePortfolioId(portfoliosWithTransactions[0].id);
-        } else {
-          // Create default portfolio
-          const defaultPortfolio: Portfolio = {
-            id: uuid(),
-            name: 'My Portfolio',
-            holdings: [],
-            transactions: [],
-            totalValue: 0,
-            totalCost: 0,
-            totalGainLoss: 0,
-            totalGainLossPercent: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          await savePortfolio(defaultPortfolio);
-          setPortfolios([defaultPortfolio]);
-          setActivePortfolio(defaultPortfolio);
-          await setActivePortfolioId(defaultPortfolio.id);
+          lastTransactionHashRef.current = '';
         }
-      } catch (error) {
-        console.error('Error loading portfolios:', error);
-        setLoading(false);
+      } else if (portfoliosWithTransactions.length > 0) {
+        setActivePortfolio(portfoliosWithTransactions[0]);
+        await setActivePortfolioId(portfoliosWithTransactions[0].id);
+        lastTransactionHashRef.current = '';
+      } else {
+        // Create default portfolio
+        const defaultPortfolio: Portfolio = {
+          id: uuid(),
+          name: 'My Portfolio',
+          holdings: [],
+          transactions: [],
+          totalValue: 0,
+          totalCost: 0,
+          totalGainLoss: 0,
+          totalGainLossPercent: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await savePortfolio(defaultPortfolio);
+        setPortfolios([defaultPortfolio]);
+        setActivePortfolio(defaultPortfolio);
+        await setActivePortfolioId(defaultPortfolio.id);
+        lastTransactionHashRef.current = '';
+      }
+    } catch (error) {
+      console.error('Error loading portfolios:', error);
+      setLoading(false);
+    }
+  }, []);
+
+  // Load portfolios on mount
+  useEffect(() => {
+    loadPortfolios();
+  }, [loadPortfolios]);
+
+  // Reload portfolios when page becomes visible (user navigates back from transactions page)
+  useEffect(() => {
+    let lastReloadTime = Date.now();
+    const RELOAD_COOLDOWN = 500; // Prevent too frequent reloads
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !loading) {
+        const now = Date.now();
+        if (now - lastReloadTime > RELOAD_COOLDOWN) {
+          lastReloadTime = now;
+          loadPortfolios();
+        }
       }
     };
 
-    loadPortfolios();
-  }, []);
+    const handleFocus = () => {
+      if (!loading) {
+        const now = Date.now();
+        if (now - lastReloadTime > RELOAD_COOLDOWN) {
+          lastReloadTime = now;
+          loadPortfolios();
+        }
+      }
+    };
+
+    // Also reload when component mounts (in case user navigated back via Next.js router)
+    const handleMount = () => {
+      if (!loading) {
+        loadPortfolios();
+      }
+    };
+
+    // Small delay to ensure we're checking after navigation
+    const mountTimer = setTimeout(handleMount, 100);
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearTimeout(mountTimer);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadPortfolios, loading]);
 
   // Update portfolio when active portfolio changes
   const updatePortfolio = useCallback(async (portfolio: Portfolio) => {
@@ -245,13 +296,18 @@ export default function Dashboard() {
         );
         
         // Add current portfolio value as the last data point if we have holdings
+        // Use the most up-to-date totalValue and totalCost from the portfolio
         if (holdings.length > 0 && activePortfolio.totalValue > 0) {
           const today = new Date().toISOString().split('T')[0];
-          // Only add if the last data point is not today
+          const isIntraday = chartPeriod === '1d';
+          // For intraday (1d), check if last data point is today (might have time component)
           const lastDate = histData.length > 0 ? histData[histData.length - 1].date : null;
-          if (lastDate !== today) {
+          const lastDateOnly = lastDate ? lastDate.split(' ')[0] : null;
+          
+          if (!lastDateOnly || lastDateOnly !== today) {
+            // Add new data point with current values
             histData.push({
-              date: today,
+              date: isIntraday ? `${today} ${new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })}` : today,
               price: activePortfolio.totalValue,
               volume: activePortfolio.totalCost || 0, // Store cost basis in volume field
             });
@@ -271,7 +327,7 @@ export default function Dashboard() {
 
     fetchHistoricalPortfolioData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartPeriod, activePortfolio?.transactions.length]);
+  }, [chartPeriod, activePortfolio?.transactions.length, activePortfolio?.totalValue, activePortfolio?.totalCost]);
 
   const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>, portfolioId: string) => {
     // Find the portfolio to add the transaction to

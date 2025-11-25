@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Download, Search, Filter, ArrowUpDown, Trash2, X, CheckSquare, Square, Info } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import TransactionHistory from '@/components/TransactionHistory';
@@ -13,6 +13,8 @@ import { getMultipleStocks, calculateHoldings } from '@/lib/stockService';
 import { exportTransactionsToCSV, downloadCSV } from '@/lib/export';
 import { formatCurrency } from '@/lib/utils';
 import { TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
+import SkeletonCard from '@/components/skeletons/SkeletonCard';
+import SkeletonTransactionTable from '@/components/skeletons/SkeletonTransactionTable';
 
 // Simple UUID generator
 function uuid() {
@@ -55,6 +57,10 @@ export default function TransactionsPage() {
 
   // Tooltip state
   const [openTooltip, setOpenTooltip] = useState<string | null>(null);
+
+  // Refs to prevent infinite loops
+  const isUpdatingRef = useRef(false);
+  const lastTransactionHashRef = useRef<string>('');
 
   useEffect(() => {
     const loadPortfolio = async () => {
@@ -102,17 +108,52 @@ export default function TransactionsPage() {
     }
   }, [openTooltip]);
 
-  const updateHoldings = async () => {
-    if (!activePortfolio) return;
+  const updateHoldings = async (portfolioOverride?: Portfolio) => {
+    const portfolioToUse = portfolioOverride || activePortfolio;
+    if (!portfolioToUse || isUpdatingRef.current) {
+      return;
+    }
+
+    // Create a hash of transaction data to detect changes
+    const currentHash = portfolioToUse.transactions
+      .map(t => `${t.id}:${t.symbol}:${t.quantity}:${t.price}:${t.date}:${t.type}`)
+      .sort()
+      .join('|');
+    
+    // Skip if transactions haven't changed and we've already loaded
+    if (currentHash === lastTransactionHashRef.current && holdings.length > 0 && !portfolioOverride) {
+      return;
+    }
+
+    isUpdatingRef.current = true;
+    lastTransactionHashRef.current = currentHash;
 
     try {
       const symbols = Array.from(
-        new Set(activePortfolio.transactions.map(t => t.symbol))
+        new Set(portfolioToUse.transactions.map(t => t.symbol))
       );
 
       if (symbols.length === 0) {
         setHoldings([]);
         setStockData({});
+        // Update portfolio with zero values
+        const updatedPortfolio: Portfolio = {
+          ...portfolioToUse,
+          holdings: [],
+          totalValue: 0,
+          totalCost: 0,
+          totalGainLoss: 0,
+          totalGainLossPercent: 0,
+          updatedAt: new Date().toISOString(),
+        };
+        await savePortfolio(updatedPortfolio);
+        // Use functional update to avoid triggering useEffect
+        setActivePortfolio(prev => {
+          if (!prev || prev.id !== updatedPortfolio.id) return prev;
+          return updatedPortfolio;
+        });
+        setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
+        isUpdatingRef.current = false;
         return;
       }
 
@@ -129,21 +170,65 @@ export default function TransactionsPage() {
       });
 
       const calculatedHoldings = calculateHoldings(
-        activePortfolio.transactions,
+        portfolioToUse.transactions,
         currentPrices
       );
       setHoldings(calculatedHoldings);
+
+      // Calculate portfolio totals
+      const totalValue = calculatedHoldings.reduce((sum, h) => sum + h.currentValue, 0);
+      const totalCost = calculatedHoldings.reduce((sum, h) => sum + h.totalCost, 0);
+      const totalGainLoss = totalValue - totalCost;
+      const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
+
+      // Update portfolio with new calculations
+      const updatedPortfolio: Portfolio = {
+        ...portfolioToUse,
+        holdings: calculatedHoldings,
+        totalValue,
+        totalCost,
+        totalGainLoss,
+        totalGainLossPercent,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await savePortfolio(updatedPortfolio);
+      
+      // Use functional update to avoid triggering useEffect
+      setActivePortfolio(prev => {
+        if (!prev || prev.id !== updatedPortfolio.id) return prev;
+        return updatedPortfolio;
+      });
+      setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
     } catch (error) {
       console.error('Error updating holdings:', error);
+    } finally {
+      isUpdatingRef.current = false;
     }
   };
 
+  // Memoize transaction hash to use as dependency
+  // Include transaction data in hash to detect content changes, not just ID changes
+  const transactionHash = useMemo(() => {
+    const transactions = activePortfolio?.transactions || [];
+    if (!transactions.length) return '';
+    // Create hash from transaction IDs and key data (symbol, quantity, price, date, type)
+    // This ensures we detect when transaction content changes, not just when IDs change
+    return transactions
+      .map(t => `${t.id}:${t.symbol}:${t.quantity}:${t.price}:${t.date}:${t.type}`)
+      .sort()
+      .join('|');
+  }, [activePortfolio?.transactions]);
+
   useEffect(() => {
-    if (activePortfolio) {
+    if (!activePortfolio) return;
+
+    // Only update if transactions actually changed (hash is different) or if we haven't loaded yet
+    if (transactionHash !== lastTransactionHashRef.current || holdings.length === 0) {
       updateHoldings();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePortfolio]);
+  }, [activePortfolio?.id, transactionHash]);
 
   // Filter and sort transactions
   const filteredAndSortedTransactions = useMemo(() => {
@@ -284,14 +369,19 @@ export default function TransactionsPage() {
 
     await savePortfolio(updatedPortfolio);
     
-    // If this is the active portfolio, update it
-    if (targetPortfolio.id === activePortfolio?.id) {
-      setActivePortfolio(updatedPortfolio);
-      updateHoldings();
-    }
-    
     // Update the portfolios array
     setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
+    
+    // If this is the active portfolio, update it
+    if (targetPortfolio.id === activePortfolio?.id) {
+      // Use functional update to avoid triggering useEffect unnecessarily
+      setActivePortfolio(prev => {
+        if (!prev || prev.id !== updatedPortfolio.id) return prev;
+        return updatedPortfolio;
+      });
+      // Reset hash so updateHoldings will run in useEffect
+      lastTransactionHashRef.current = '';
+    }
   };
 
   const handleDeleteTransaction = async (transactionId: string) => {
@@ -304,8 +394,15 @@ export default function TransactionsPage() {
     };
 
     await savePortfolio(updatedPortfolio);
-    setActivePortfolio(updatedPortfolio);
-    updateHoldings();
+    // Use functional update to avoid triggering useEffect unnecessarily
+    setActivePortfolio(prev => {
+      if (!prev || prev.id !== updatedPortfolio.id) return prev;
+      return updatedPortfolio;
+    });
+    // Update portfolios array
+    setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
+    // Reset hash so updateHoldings will run in useEffect
+    lastTransactionHashRef.current = '';
     setSelectedTransactions(prev => {
       const next = new Set(prev);
       next.delete(transactionId);
@@ -327,8 +424,15 @@ export default function TransactionsPage() {
     };
 
     await savePortfolio(updatedPortfolio);
-    setActivePortfolio(updatedPortfolio);
-    updateHoldings();
+    // Use functional update to avoid triggering useEffect unnecessarily
+    setActivePortfolio(prev => {
+      if (!prev || prev.id !== updatedPortfolio.id) return prev;
+      return updatedPortfolio;
+    });
+    // Update portfolios array
+    setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
+    // Reset hash so updateHoldings will run in useEffect
+    lastTransactionHashRef.current = '';
     setSelectedTransactions(new Set());
   };
 
@@ -349,8 +453,15 @@ export default function TransactionsPage() {
     };
 
     await savePortfolio(updatedPortfolio);
-    setActivePortfolio(updatedPortfolio);
-    updateHoldings();
+    // Update portfolios array first
+    setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
+    // Use functional update to avoid triggering useEffect unnecessarily
+    setActivePortfolio(prev => {
+      if (!prev || prev.id !== updatedPortfolio.id) return prev;
+      return updatedPortfolio;
+    });
+    // Force updateHoldings to run immediately with updated portfolio data
+    updateHoldings(updatedPortfolio);
   };
 
   const handleCreatePortfolio = async (name: string, description?: string) => {
@@ -467,7 +578,13 @@ export default function TransactionsPage() {
         </div>
 
         {/* Statistics Cards */}
-        {!loading && activePortfolio && activePortfolio.transactions.length > 0 && (
+        {loading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : activePortfolio && activePortfolio.transactions.length > 0 && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="rounded-lg border bg-white dark:bg-gray-800 p-4 shadow-sm relative">
               <div className="flex items-center justify-between">
@@ -727,12 +844,7 @@ export default function TransactionsPage() {
 
         {/* Transactions Table */}
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading transactions...</p>
-            </div>
-          </div>
+          <SkeletonTransactionTable />
         ) : (
           <>
             <TransactionHistory

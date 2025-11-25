@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import LandingPage from '@/components/LandingPage';
-import Dashboard from './dashboard/page';
 
 export default function Home() {
   const router = useRouter();
@@ -16,15 +15,24 @@ export default function Home() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
       setLoading(false);
+      // Redirect authenticated users to dashboard
+      if (user) {
+        router.push('/dashboard');
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
       setLoading(false);
+      // Redirect authenticated users to dashboard
+      if (currentUser) {
+        router.push('/dashboard');
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (
@@ -34,9 +42,7 @@ export default function Home() {
     );
   }
 
-  if (user) {
-    return <Dashboard />;
-  }
-
+  // If user is authenticated, they'll be redirected to /dashboard
+  // So we only show landing page for unauthenticated users
   return <LandingPage />;
 }

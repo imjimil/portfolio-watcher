@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const token_hash = requestUrl.searchParams.get('token_hash');
   const type = requestUrl.searchParams.get('type');
-  const next = requestUrl.searchParams.get('next') || '/';
+  const next = requestUrl.searchParams.get('next') || '/dashboard';
 
   if (token_hash && type) {
     const supabase = await createClient();
@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
     });
 
     if (!error) {
-      // Successfully verified, redirect to home
-      return NextResponse.redirect(new URL('/', requestUrl.origin));
+      // Successfully verified, redirect to dashboard
+      return NextResponse.redirect(new URL(next, requestUrl.origin));
     }
   }
 

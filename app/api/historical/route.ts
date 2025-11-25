@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const symbol = searchParams.get('symbol');
   const days = searchParams.get('days') || '30';
   const range = searchParams.get('range'); // Optional: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
+  const interval = searchParams.get('interval'); // Optional: 1m, 5m, 15m, 30m, 60m, 1d, etc.
 
   if (!symbol) {
     return NextResponse.json({ error: 'Symbol parameter is required' }, { status: 400 });
@@ -15,6 +16,8 @@ export async function GET(request: NextRequest) {
   try {
     // Use provided range or calculate from days
     let finalRange = range;
+    let finalInterval = interval || '1d';
+    
     if (!finalRange) {
       const daysNum = parseInt(days);
       if (daysNum <= 1) finalRange = '1d';
@@ -28,7 +31,12 @@ export async function GET(request: NextRequest) {
       else finalRange = 'max';
     }
     
-    const url = `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=${finalRange}`;
+    // For intraday (1d range), use 5-minute intervals
+    if (finalRange === '1d' && !interval) {
+      finalInterval = '5m';
+    }
+    
+    const url = `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${symbol.toUpperCase()}?interval=${finalInterval}&range=${finalRange}`;
     
     const response = await fetch(url);
     

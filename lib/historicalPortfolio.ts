@@ -70,14 +70,17 @@ export async function calculateHistoricalPortfolioValue(
     ? `${targetStartDate.getFullYear()}-${String(targetStartDate.getMonth() + 1).padStart(2, '0')}-${String(targetStartDate.getDate()).padStart(2, '0')}`
     : null;
 
+  // For 1d period, fetch intraday data (today's movement)
+  const isIntraday = period === '1d';
+  
   // Fetch historical data for all symbols in parallel
   const historicalDataPromises = symbols.map(symbol => 
-    getHistoricalData(symbol, days, range).catch(() => [])
+    getHistoricalData(symbol, days, range, isIntraday).catch(() => [])
   );
   
   const allHistoricalData = await Promise.all(historicalDataPromises);
   
-  // Create a map of symbol -> historical prices by date
+  // Create a map of symbol -> historical prices by date/time
   const pricesByDate = new Map<string, Map<string, number>>();
   
   for (let i = 0; i < symbols.length; i++) {
@@ -91,45 +94,50 @@ export async function calculateHistoricalPortfolioValue(
       pricesByDate.get(dataPoint.date)!.set(symbol, dataPoint.price);
     }
   }
-
-  // Get all unique dates from all historical data
+  
+  // Get all unique dates/times from all historical data
   const allDates = Array.from(pricesByDate.keys()).sort();
   
   if (allDates.length === 0) {
     return [];
   }
-
-  // Calculate portfolio value for each date
+  
+  // Calculate portfolio value for each date/time
   const portfolioHistory: HistoricalData[] = [];
   
-  for (const dateStr of allDates) {
-    const pricesAtDate = Object.fromEntries(pricesByDate.get(dateStr) || []);
+  for (const dateTimeStr of allDates) {
+    const pricesAtDate = Object.fromEntries(pricesByDate.get(dateTimeStr) || []);
     
-    // Check if we have prices for any symbols that were held at this date
-    // We need to check if any transactions occurred before this date
-    // Use local date parsing to avoid timezone issues
-    const hasTransactionsBeforeDate = transactions.some(t => {
-      const tDate = parseLocalDate(t.date);
-      const targetDate = parseLocalDate(dateStr);
-      return tDate <= targetDate && t.type !== 'dividend';
-    });
+    // For intraday, we only care about today's holdings (all current transactions)
+    // For daily, check if transactions occurred before this date
+    let hasTransactions = false;
+    if (isIntraday) {
+      // For intraday, include all current holdings (today's portfolio)
+      hasTransactions = transactions.some(t => t.type !== 'dividend');
+    } else {
+      // For daily, only include transactions up to this date
+      const dateStr = dateTimeStr.split(' ')[0]; // Extract date part if it includes time
+      hasTransactions = transactions.some(t => {
+        const tDate = parseLocalDate(t.date);
+        const targetDate = parseLocalDate(dateStr);
+        return tDate <= targetDate && t.type !== 'dividend';
+      });
+    }
     
-    if (!hasTransactionsBeforeDate) continue;
+    if (!hasTransactions) continue;
     
-    // Calculate portfolio value and cost basis at this date
-    // This function properly accounts for:
-    // - Only transactions that occurred on or before this date
-    // - Historical prices at this date
-    // - Proper FIFO cost basis calculation
+    // Calculate portfolio value and cost basis
+    // For intraday, use today's date; for daily, parse the date from the string
+    const dateStr = isIntraday ? new Date().toISOString().split('T')[0] : dateTimeStr.split(' ')[0];
     const targetDate = parseLocalDate(dateStr);
     const portfolioValue = calculatePortfolioValueAtDate(transactions, targetDate, pricesAtDate);
     const costBasis = calculateCostBasisAtDate(transactions, targetDate);
     
     if (portfolioValue > 0 && costBasis > 0) {
       portfolioHistory.push({
-        date: dateStr,
-        price: portfolioValue, // Using 'price' field to store portfolio value
-        volume: costBasis, // Using 'volume' field to store cost basis for percentage calculations
+        date: dateTimeStr, // Keep full datetime string for intraday
+        price: portfolioValue,
+        volume: costBasis,
       });
     }
   }

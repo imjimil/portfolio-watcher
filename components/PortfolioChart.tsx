@@ -15,9 +15,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     // Format date from dateFull or label
     let formattedDate = label;
     if (data.dateFull) {
-      const [year, month, day] = data.dateFull.split('-').map(Number);
-      const date = new Date(year, month - 1, day);
-      formattedDate = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      // Check if it's intraday (includes time)
+      if (data.dateFull.includes(' ')) {
+        const [datePart, timePart] = data.dateFull.split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart.split(':').map(Number);
+        const date = new Date(year, month - 1, day, hours, minutes);
+        formattedDate = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      } else {
+        const [year, month, day] = data.dateFull.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        formattedDate = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      }
     }
     
     return (
@@ -70,17 +79,44 @@ export default function PortfolioChart({
   
   // Use actual dollar values for the chart
   // Parse date string as local date to avoid timezone issues
+  // For intraday (1d period), the date string includes time (YYYY-MM-DD HH:MM)
   const chartData = data.map(item => {
-    const [year, month, day] = item.date.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
+    const isIntraday = period === '1d' && item.date.includes(' ');
+    let date: Date;
+    let displayDate: string;
+    let dateFull: string;
+    
+    if (isIntraday) {
+      // Parse datetime string (YYYY-MM-DD HH:MM)
+      const [datePart, timePart] = item.date.split(' ');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes] = timePart.split(':').map(Number);
+      date = new Date(year, month - 1, day, hours, minutes);
+      // Format as time (e.g., "9:30 AM")
+      displayDate = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      dateFull = item.date;
+    } else {
+      // Parse date string (YYYY-MM-DD)
+      const [year, month, day] = item.date.split('-').map(Number);
+      date = new Date(year, month - 1, day);
+      
+      // For 5d period, show day name (Mon, Tue, etc.)
+      if (period === '5d') {
+        displayDate = date.toLocaleDateString('en-US', { weekday: 'short' });
+      } else {
+        displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      dateFull = item.date;
+    }
+    
     const costBasis = item.volume || 0;
     const value = item.price;
     // Calculate gain/loss percentage for this data point
     const gainPercent = costBasis > 0 ? ((value - costBasis) / costBasis) * 100 : 0;
     
     return {
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      dateFull: item.date, // Keep original date string for tooltip
+      date: displayDate,
+      dateFull: dateFull, // Keep original date/datetime string for tooltip
       value: item.price, // Use actual dollar value
       costBasis: costBasis, // Cost basis stored in volume field
       gainPercent: gainPercent, // Gain/loss percentage for this point
@@ -97,6 +133,12 @@ export default function PortfolioChart({
     // For "all time", compare current value to total cost basis (what you actually paid)
     percentChange = ((currentValue - costBasis) / costBasis) * 100;
     isPositive = percentChange >= 0;
+  } else if (period === '1d') {
+    // For 1d (intraday), compare opening value to current value (today's movement)
+    if (startValue > 0) {
+      percentChange = ((endValue - startValue) / startValue) * 100;
+      isPositive = percentChange >= 0;
+    }
   } else {
     // For period-based views, calculate gain percentage at start and end
     // Then show the change in gain percentage

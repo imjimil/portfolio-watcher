@@ -388,6 +388,11 @@ export default function Dashboard() {
                         let rangePercentChange = 0;
                         if (chartPeriod === 'all' && activePortfolio?.totalValue && activePortfolio?.totalCost) {
                           rangePercentChange = ((activePortfolio.totalValue - activePortfolio.totalCost) / activePortfolio.totalCost) * 100;
+                        } else if (chartPeriod === '1d') {
+                          // For 1d (intraday), compare opening to current (today's movement)
+                          if (startValue > 0) {
+                            rangePercentChange = ((endValue - startValue) / startValue) * 100;
+                          }
                         } else {
                           const startGainPercent = startCostBasis > 0 ? ((startValue - startCostBasis) / startCostBasis) * 100 : 0;
                           const endGainPercent = endCostBasis > 0 ? ((endValue - endCostBasis) / endCostBasis) * 100 : 0;

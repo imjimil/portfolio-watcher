@@ -226,20 +226,22 @@ export async function getMultipleStocks(symbols: string[]): Promise<Stock[]> {
 }
 
 /**
- * Get historical data
+ * Get historical data (daily or intraday)
  */
 export async function getHistoricalData(
   symbol: string,
   days: number = 30,
-  range?: string
+  range?: string,
+  intraday: boolean = false
 ): Promise<HistoricalData[]> {
   const upperSymbol = symbol.toUpperCase();
 
   try {
-    const cacheKey = `historical-${upperSymbol}-${range || days}`;
-    const endpoint = `/historical?symbol=${encodeURIComponent(upperSymbol)}&days=${days}${range ? `&range=${range}` : ''}`;
+    const interval = intraday ? '5m' : undefined;
+    const cacheKey = `historical-${upperSymbol}-${range || days}${intraday ? '-intraday' : ''}`;
+    const endpoint = `/historical?symbol=${encodeURIComponent(upperSymbol)}&days=${days}${range ? `&range=${range}` : ''}${interval ? `&interval=${interval}` : ''}`;
     
-    const data = await cachedFetch(endpoint, cacheKey, CACHE_DURATION * 5); // Cache longer for historical data
+    const data = await cachedFetch(endpoint, cacheKey, intraday ? CACHE_DURATION : CACHE_DURATION * 5); // Shorter cache for intraday
     
     if (data.chart && data.chart.result && data.chart.result.length > 0) {
       const result = data.chart.result[0];
@@ -252,25 +254,84 @@ export async function getHistoricalData(
         const volumes = quote[0].volume || [];
         
         const historicalData: HistoricalData[] = [];
-        // For 'all' or long ranges, don't limit by days - show all data
-        const maxPoints = range === 'all' || range === '5y' || range === 'max' ? timestamps.length : Math.min(timestamps.length, days);
         
-        for (let i = 0; i < maxPoints; i++) {
-          if (closes[i] !== null && closes[i] !== undefined) {
-            // Convert timestamp to date string (YYYY-MM-DD)
-            // Yahoo Finance timestamps are in UTC and represent the trading day
-            // Use UTC methods to preserve the trading day regardless of local timezone
-            const date = new Date(timestamps[i] * 1000);
-            const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(date.getUTCDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
-            
-            historicalData.push({
-              date: dateStr,
-              price: closes[i],
-              volume: volumes[i] || 0,
-            });
+        if (intraday) {
+          // For intraday, include timestamp for time display
+          // Filter to only today's data (market hours: 9:30 AM - 4:00 PM ET)
+          // Yahoo Finance timestamps are in UTC, but we need to convert to ET (UTC-5 or UTC-4 depending on DST)
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          
+          for (let i = 0; i < timestamps.length; i++) {
+            if (closes[i] !== null && closes[i] !== undefined) {
+              const date = new Date(timestamps[i] * 1000);
+              
+              // Convert UTC to Eastern Time
+              // ET is UTC-5 (EST) or UTC-4 (EDT)
+              // Use toLocaleString with timeZone to get ET time
+              const etDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+              const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+              
+              // Calculate the offset in hours
+              const offsetHours = (etDate.getTime() - utcDate.getTime()) / (1000 * 60 * 60);
+              
+              // Apply offset to get ET time
+              const etTime = new Date(date.getTime() - (offsetHours * 60 * 60 * 1000));
+              
+              // Alternative: Use Intl.DateTimeFormat to get ET time directly
+              const etFormatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              });
+              
+              const parts = etFormatter.formatToParts(date);
+              const year = parts.find(p => p.type === 'year')?.value;
+              const month = parts.find(p => p.type === 'month')?.value;
+              const day = parts.find(p => p.type === 'day')?.value;
+              const hour = parts.find(p => p.type === 'hour')?.value;
+              const minute = parts.find(p => p.type === 'minute')?.value;
+              
+              const dateStr = `${year}-${month}-${day}`;
+              
+              // Only include today's data
+              if (dateStr === todayStr) {
+                // Format as YYYY-MM-DD HH:MM in ET timezone
+                const dateTimeStr = `${dateStr} ${hour}:${minute}`;
+                
+                historicalData.push({
+                  date: dateTimeStr, // Include time for intraday in ET
+                  price: closes[i],
+                  volume: volumes[i] || 0,
+                });
+              }
+            }
+          }
+        } else {
+          // For daily data, use date only
+          const maxPoints = range === 'all' || range === '5y' || range === 'max' ? timestamps.length : Math.min(timestamps.length, days);
+          
+          for (let i = 0; i < maxPoints; i++) {
+            if (closes[i] !== null && closes[i] !== undefined) {
+              // Convert timestamp to date string (YYYY-MM-DD)
+              // Yahoo Finance timestamps are in UTC and represent the trading day
+              // Use UTC methods to preserve the trading day regardless of local timezone
+              const date = new Date(timestamps[i] * 1000);
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(date.getUTCDate()).padStart(2, '0');
+              const dateStr = `${year}-${month}-${day}`;
+              
+              historicalData.push({
+                date: dateStr,
+                price: closes[i],
+                volume: volumes[i] || 0,
+              });
+            }
           }
         }
         

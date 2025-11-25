@@ -26,7 +26,21 @@ const CustomTooltip = ({ active, payload, label, period, currentValue, costBasis
         const [year, month, day] = datePart.split('-').map(Number);
         const [hours, minutes] = timePart.split(':').map(Number);
         const date = new Date(year, month - 1, day, hours, minutes);
-        formattedDate = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        
+        // Check if this is yesterday's close
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const isYesterdayClose = hours === 16 && minutes === 0 && 
+          year === yesterday.getFullYear() && 
+          month === yesterday.getMonth() + 1 && 
+          day === yesterday.getDate();
+        
+        if (isYesterdayClose) {
+          formattedDate = 'Yesterday Close';
+        } else {
+          formattedDate = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
       } else {
         const [year, month, day] = data.dateFull.split('-').map(Number);
         const date = new Date(year, month - 1, day);
@@ -105,8 +119,23 @@ export default function PortfolioChart({
       const [year, month, day] = datePart.split('-').map(Number);
       const [hours, minutes] = timePart.split(':').map(Number);
       date = new Date(year, month - 1, day, hours, minutes);
-      // Format as time (e.g., "9:30 AM")
-      displayDate = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      
+      // Check if this is yesterday's close (16:00 on yesterday's date)
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const isYesterdayClose = hours === 16 && minutes === 0 && 
+        year === yesterday.getFullYear() && 
+        month === yesterday.getMonth() + 1 && 
+        day === yesterday.getDate();
+      
+      if (isYesterdayClose) {
+        // Show as "Yesterday Close" or just "4:00 PM" with date context
+        displayDate = 'Yesterday Close';
+      } else {
+        // Format as time (e.g., "9:30 AM")
+        displayDate = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      }
       dateFull = item.date;
     } else {
       // Parse date string (YYYY-MM-DD)
@@ -152,7 +181,8 @@ export default function PortfolioChart({
     percentChange = ((currentValue - costBasis) / costBasis) * 100;
     isPositive = percentChange >= 0;
   } else if (period === '1d') {
-    // For 1d (intraday), compare opening value to current value (today's movement)
+    // For 1d (intraday), compare yesterday's close to current value (full day's performance)
+    // startValue is now yesterday's closing portfolio value (added as first data point)
     if (startValue > 0) {
       percentChange = ((endValue - startValue) / startValue) * 100;
       isPositive = percentChange >= 0;

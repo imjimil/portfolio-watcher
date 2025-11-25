@@ -73,6 +73,34 @@ export async function calculateHistoricalPortfolioValue(
   // For 1d period, fetch intraday data (today's movement)
   const isIntraday = period === '1d';
   
+  // For 1d period, we also need yesterday's closing prices to show the full day's performance
+  let yesterdayClosePrices: Record<string, number> = {};
+  if (isIntraday) {
+    // Fetch yesterday's closing prices for all symbols
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    
+    const yesterdayDataPromises = symbols.map(async (symbol) => {
+      try {
+        // Fetch 2 days of data to get yesterday's close
+        const histData = await getHistoricalData(symbol, 2, '2d', false);
+        // Find yesterday's data point
+        const yesterdayData = histData.find(d => d.date === yesterdayStr);
+        return { symbol, price: yesterdayData?.price || null };
+      } catch {
+        return { symbol, price: null };
+      }
+    });
+    
+    const yesterdayResults = await Promise.all(yesterdayDataPromises);
+    yesterdayResults.forEach(({ symbol, price }) => {
+      if (price !== null) {
+        yesterdayClosePrices[symbol] = price;
+      }
+    });
+  }
+  
   // Fetch historical data for all symbols in parallel
   const historicalDataPromises = symbols.map(symbol => 
     getHistoricalData(symbol, days, range, isIntraday).catch(() => [])
@@ -142,14 +170,45 @@ export async function calculateHistoricalPortfolioValue(
     }
   }
 
+  // For 1d period, add yesterday's closing portfolio value as the first data point
+  if (isIntraday && Object.keys(yesterdayClosePrices).length > 0) {
+    // Calculate portfolio value at yesterday's close
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    const yesterdayDate = parseLocalDate(yesterdayStr);
+    
+    // Calculate portfolio value and cost basis at yesterday's close
+    const yesterdayPortfolioValue = calculatePortfolioValueAtDate(transactions, yesterdayDate, yesterdayClosePrices);
+    const yesterdayCostBasis = calculateCostBasisAtDate(transactions, yesterdayDate);
+    
+    if (yesterdayPortfolioValue > 0 && yesterdayCostBasis > 0) {
+      // Add yesterday's close as the first data point (use market close time: 4:00 PM ET)
+      portfolioHistory.unshift({
+        date: `${yesterdayStr} 16:00`, // Market close time
+        price: yesterdayPortfolioValue,
+        volume: yesterdayCostBasis,
+      });
+    }
+  }
+  
   // Sort by date (oldest first)
-  const sortedHistory = portfolioHistory.sort((a, b) => 
-    parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
-  );
+  const sortedHistory = portfolioHistory.sort((a, b) => {
+    // For intraday, compare date-time strings properly
+    if (a.date.includes(' ') && b.date.includes(' ')) {
+      const [aDate, aTime] = a.date.split(' ');
+      const [bDate, bTime] = b.date.split(' ');
+      if (aDate === bDate) {
+        return aTime.localeCompare(bTime);
+      }
+      return aDate.localeCompare(bDate);
+    }
+    return parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime();
+  });
 
-  // If we have a target start date and the first data point is after it,
+  // If we have a target start date and the first data point is after it (and not intraday),
   // add a data point for the target start date using the first available price
-  if (targetStartDateStr && sortedHistory.length > 0) {
+  if (targetStartDateStr && sortedHistory.length > 0 && !isIntraday) {
     const firstDate = parseLocalDate(sortedHistory[0].date);
     const targetDate = parseLocalDate(targetStartDateStr);
     

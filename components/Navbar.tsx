@@ -53,7 +53,7 @@ export default function Navbar() {
   }, [profileMenuOpen]);
 
   const navItems = [
-    { href: '/', label: 'Dashboard', icon: TrendingUp },
+    { href: '/dashboard', label: 'Dashboard', icon: TrendingUp },
     { href: '/holdings', label: 'Holdings', icon: Wallet },
     { href: '/transactions', label: 'Transactions', icon: List },
     { href: '/watchlist', label: 'Watchlist', icon: Eye },
@@ -66,7 +66,7 @@ export default function Navbar() {
       <div className="container max-w-7xl mx-auto px-3 sm:px-4">
         <div className="flex h-14 sm:h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
             <h1 className="text-lg sm:text-xl font-bold truncate">Portfolio Tracker</h1>
           </Link>

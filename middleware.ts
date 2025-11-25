@@ -3,6 +3,19 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Allow unauthenticated access to landing, login, signup, and auth pages
+  if (
+    pathname === '/' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/auth')
+  ) {
+    return NextResponse.next();
+  }
+
+  // For all other routes, require authentication
   return await updateSession(request);
 }
 

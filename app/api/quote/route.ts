@@ -1,0 +1,31 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+const YAHOO_FINANCE_BASE_URL = 'https://query1.finance.yahoo.com';
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const symbol = searchParams.get('symbol');
+
+  if (!symbol) {
+    return NextResponse.json({ error: 'Symbol parameter is required' }, { status: 400 });
+  }
+
+  try {
+    const url = `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=2d`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Yahoo Finance API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error fetching quote:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch quote data' },
+      { status: 500 }
+    );
+  }
+}
+

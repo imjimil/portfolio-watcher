@@ -1,0 +1,173 @@
+import { Transaction, HistoricalData } from '@/types';
+import { calculatePortfolioValueAtDate, calculateCostBasisAtDate } from './portfolioCalculator';
+import { getHistoricalData } from './stockService';
+import { parseLocalDate } from './utils';
+
+/**
+ * Calculate portfolio value over time based on actual transactions and historical prices
+ * This properly accounts for when you bought/sold stocks
+ */
+export async function calculateHistoricalPortfolioValue(
+  transactions: Transaction[],
+  period: '1d' | '5d' | '1m' | '6m' | 'ytd' | 'all'
+): Promise<HistoricalData[]> {
+  if (transactions.length === 0) {
+    return [];
+  }
+
+  // Get all unique symbols from transactions
+  const symbols = Array.from(new Set(transactions.map(t => t.symbol)));
+  
+  if (symbols.length === 0) {
+    return [];
+  }
+
+  // Convert period to days and range, and calculate target start date
+  let days = 30;
+  let range = '1mo';
+  let targetStartDate: Date | null = null;
+  
+  switch (period) {
+    case '1d':
+      days = 1;
+      range = '1d';
+      targetStartDate = new Date();
+      targetStartDate.setDate(targetStartDate.getDate() - 1);
+      break;
+    case '5d':
+      days = 5;
+      range = '5d';
+      targetStartDate = new Date();
+      targetStartDate.setDate(targetStartDate.getDate() - 5);
+      break;
+    case '1m':
+      days = 30;
+      range = '1mo';
+      targetStartDate = new Date();
+      targetStartDate.setMonth(targetStartDate.getMonth() - 1);
+      break;
+    case '6m':
+      days = 180;
+      range = '6mo';
+      targetStartDate = new Date();
+      targetStartDate.setMonth(targetStartDate.getMonth() - 6);
+      break;
+    case 'ytd':
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+      days = Math.ceil((Date.now() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+      range = 'ytd';
+      targetStartDate = startOfYear;
+      break;
+    case 'all':
+      days = 365 * 5;
+      range = '5y';
+      // For 'all', we don't need a specific start date
+      break;
+  }
+  
+  // Format target start date as YYYY-MM-DD
+  const targetStartDateStr = targetStartDate 
+    ? `${targetStartDate.getFullYear()}-${String(targetStartDate.getMonth() + 1).padStart(2, '0')}-${String(targetStartDate.getDate()).padStart(2, '0')}`
+    : null;
+
+  // Fetch historical data for all symbols in parallel
+  const historicalDataPromises = symbols.map(symbol => 
+    getHistoricalData(symbol, days, range).catch(() => [])
+  );
+  
+  const allHistoricalData = await Promise.all(historicalDataPromises);
+  
+  // Create a map of symbol -> historical prices by date
+  const pricesByDate = new Map<string, Map<string, number>>();
+  
+  for (let i = 0; i < symbols.length; i++) {
+    const symbol = symbols[i];
+    const histData = allHistoricalData[i];
+    
+    for (const dataPoint of histData) {
+      if (!pricesByDate.has(dataPoint.date)) {
+        pricesByDate.set(dataPoint.date, new Map());
+      }
+      pricesByDate.get(dataPoint.date)!.set(symbol, dataPoint.price);
+    }
+  }
+
+  // Get all unique dates from all historical data
+  const allDates = Array.from(pricesByDate.keys()).sort();
+  
+  if (allDates.length === 0) {
+    return [];
+  }
+
+  // Calculate portfolio value for each date
+  const portfolioHistory: HistoricalData[] = [];
+  
+  for (const dateStr of allDates) {
+    const pricesAtDate = Object.fromEntries(pricesByDate.get(dateStr) || []);
+    
+    // Check if we have prices for any symbols that were held at this date
+    // We need to check if any transactions occurred before this date
+    // Use local date parsing to avoid timezone issues
+    const hasTransactionsBeforeDate = transactions.some(t => {
+      const tDate = parseLocalDate(t.date);
+      const targetDate = parseLocalDate(dateStr);
+      return tDate <= targetDate && t.type !== 'dividend';
+    });
+    
+    if (!hasTransactionsBeforeDate) continue;
+    
+    // Calculate portfolio value and cost basis at this date
+    // This function properly accounts for:
+    // - Only transactions that occurred on or before this date
+    // - Historical prices at this date
+    // - Proper FIFO cost basis calculation
+    const targetDate = parseLocalDate(dateStr);
+    const portfolioValue = calculatePortfolioValueAtDate(transactions, targetDate, pricesAtDate);
+    const costBasis = calculateCostBasisAtDate(transactions, targetDate);
+    
+    if (portfolioValue > 0 && costBasis > 0) {
+      portfolioHistory.push({
+        date: dateStr,
+        price: portfolioValue, // Using 'price' field to store portfolio value
+        volume: costBasis, // Using 'volume' field to store cost basis for percentage calculations
+      });
+    }
+  }
+
+  // Sort by date (oldest first)
+  const sortedHistory = portfolioHistory.sort((a, b) => 
+    parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
+  );
+
+  // If we have a target start date and the first data point is after it,
+  // add a data point for the target start date using the first available price
+  if (targetStartDateStr && sortedHistory.length > 0) {
+    const firstDate = parseLocalDate(sortedHistory[0].date);
+    const targetDate = parseLocalDate(targetStartDateStr);
+    
+    // If the first data point is after the target start date, add a point for the target date
+    if (firstDate > targetDate) {
+      // Use the first available trading day's prices for the target start date
+      // This represents the portfolio value as of the target date (even if market was closed)
+      const firstAvailableDate = sortedHistory[0].date;
+      const pricesAtFirstDate = Object.fromEntries(pricesByDate.get(firstAvailableDate) || []);
+      const targetDateObj = parseLocalDate(targetStartDateStr);
+      
+      // Calculate portfolio value at target date using prices from first available trading day
+      // This gives us the portfolio value as of the target date
+      const portfolioValueAtTarget = calculatePortfolioValueAtDate(transactions, targetDateObj, pricesAtFirstDate);
+      const costBasisAtTarget = calculateCostBasisAtDate(transactions, targetDateObj);
+      
+      if (portfolioValueAtTarget > 0 && costBasisAtTarget > 0) {
+        sortedHistory.unshift({
+          date: targetStartDateStr,
+          price: portfolioValueAtTarget,
+          volume: costBasisAtTarget,
+        });
+      }
+    }
+  }
+
+  return sortedHistory;
+}
+

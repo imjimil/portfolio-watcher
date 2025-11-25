@@ -7,6 +7,9 @@ import StatCard from '@/components/StatCard';
 import PortfolioChart from '@/components/PortfolioChart';
 import AllocationChart from '@/components/AllocationChart';
 import AddTransactionModal from '@/components/AddTransactionModal';
+import SkeletonCard from '@/components/skeletons/SkeletonCard';
+import SkeletonChartCard from '@/components/skeletons/SkeletonChartCard';
+import SkeletonTransactionCard from '@/components/skeletons/SkeletonTransactionCard';
 import { Portfolio, Transaction, Holding, Stock } from '@/types';
 import {
   getPortfolios,
@@ -294,90 +297,100 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
       <Navbar />
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading portfolio...</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Portfolio Header */}
-            <div className="mb-6 sm:mb-8">
-              <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 mb-4">
-                <div className="min-w-0 flex-1 pl-0.5 sm:pl-0">
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                    {activePortfolio?.name || 'My Portfolio'}
-                  </h2>
-                  <p className="hidden sm:block text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-                    {activePortfolio?.description || 'Track your investments'}
-                  </p>
-                </div>
-                <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
-                  {activePortfolio && (
-                    <button
-                      onClick={() => {
-                        const csv = exportPortfolioToCSV(activePortfolio);
-                        downloadCSV(csv, `portfolio-${activePortfolio.name}-${new Date().toISOString().split('T')[0]}.csv`);
-                      }}
-                      className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <Download className="h-4 w-4 sm:h-5 sm:w-5" />
-                      <span className="hidden sm:inline">Export</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="hidden sm:inline">Add Transaction</span>
-                    <span className="sm:hidden">Add</span>
-                  </button>
-                </div>
+        <>
+          {/* Portfolio Header */}
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 mb-4">
+              <div className="min-w-0 flex-1 pl-0.5 sm:pl-0">
+                {loading ? (
+                  <div className="animate-pulse">
+                    <div className="h-7 sm:h-8 lg:h-9 w-48 sm:w-64 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                    <div className="hidden sm:block h-4 sm:h-5 w-40 sm:w-56 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                      {activePortfolio?.name || 'My Portfolio'}
+                    </h2>
+                    <p className="hidden sm:block text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
+                      {activePortfolio?.description || 'Track your investments'}
+                    </p>
+                  </>
+                )}
               </div>
-
-              {refreshing && (
-                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                  <Activity className="h-4 w-4 animate-spin" />
-                  Refreshing data...
-                </div>
-              )}
+              <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
+                {!loading && activePortfolio && (
+                  <button
+                    onClick={() => {
+                      const csv = exportPortfolioToCSV(activePortfolio);
+                      downloadCSV(csv, `portfolio-${activePortfolio.name}-${new Date().toISOString().split('T')[0]}.csv`);
+                    }}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="hidden sm:inline">Add Transaction</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              </div>
             </div>
 
-            {/* Stats Grid */}
-            {portfolioStats && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-                <StatCard
-                  title="Total Value"
-                  value={portfolioStats.totalValue}
-                  icon={Wallet}
-                />
-                <StatCard
-                  title="Total Cost"
-                  value={portfolioStats.totalCost}
-                  icon={DollarSign}
-                />
-                <StatCard
-                  title="Total Gain/Loss"
-                  value={portfolioStats.totalGainLoss}
-                  changePercent={portfolioStats.totalGainLossPercent}
-                  icon={portfolioStats.totalGainLoss >= 0 ? TrendingUp : TrendingDown}
-                />
-                <StatCard
-                  title="Day Change"
-                  value={portfolioStats.dayChange}
-                  changePercent={portfolioStats.dayChangePercent}
-                  icon={Activity}
-                />
+            {refreshing && (
+              <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                <Activity className="h-4 w-4 animate-spin" />
+                Refreshing data...
               </div>
             )}
+          </div>
+
+          {/* Stats Grid */}
+          {loading || refreshing ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+              {[1, 2, 3, 4].map((i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : portfolioStats ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+              <StatCard
+                title="Total Value"
+                value={portfolioStats.totalValue}
+                icon={Wallet}
+              />
+              <StatCard
+                title="Total Cost"
+                value={portfolioStats.totalCost}
+                icon={DollarSign}
+              />
+              <StatCard
+                title="Total Gain/Loss"
+                value={portfolioStats.totalGainLoss}
+                changePercent={portfolioStats.totalGainLossPercent}
+                icon={portfolioStats.totalGainLoss >= 0 ? TrendingUp : TrendingDown}
+              />
+              <StatCard
+                title="Day Change"
+                value={portfolioStats.dayChange}
+                changePercent={portfolioStats.dayChangePercent}
+                icon={Activity}
+              />
+            </div>
+          ) : null}
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
               {/* Portfolio Performance Chart */}
-              {historicalData.length > 0 && (
+              {loading || refreshing || historicalData.length === 0 ? (
+                <SkeletonChartCard />
+              ) : historicalData.length > 0 ? (
                 <div className="rounded-lg border bg-white dark:bg-gray-800 p-3 sm:p-4 lg:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
                     <div className="flex-1">
@@ -469,20 +482,24 @@ export default function Dashboard() {
                     ))}
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Allocation Chart and Recent Transactions - Side by side on mobile */}
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-6">
                 {/* Allocation Chart */}
-                {holdings.length > 0 && (
+                {loading || refreshing ? (
+                  <SkeletonChartCard />
+                ) : holdings.length > 0 ? (
                   <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
                     <h3 className="text-xs sm:text-base lg:text-lg font-semibold mb-2 sm:mb-3 lg:mb-4">Portfolio Allocation</h3>
                     <AllocationChart holdings={holdings} />
                   </div>
-                )}
+                ) : null}
 
                 {/* Recent Transactions Summary */}
-                {activePortfolio && activePortfolio.transactions.length > 0 && (
+                {loading || refreshing ? (
+                  <SkeletonTransactionCard />
+                ) : activePortfolio && activePortfolio.transactions.length > 0 ? (
                   <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
                     <h3 className="text-xs sm:text-base lg:text-lg font-semibold mb-2 sm:mb-3 lg:mb-4">Recent Transactions</h3>
                 <div className="space-y-1.5 sm:space-y-2">
@@ -530,11 +547,10 @@ export default function Dashboard() {
                     ))}
                 </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
-          </>
-        )}
+        </>
       </main>
 
       <AddTransactionModal

@@ -7,9 +7,12 @@ import StatCard from '@/components/StatCard';
 import PortfolioChart from '@/components/PortfolioChart';
 import AllocationChart from '@/components/AllocationChart';
 import AddTransactionModal from '@/components/AddTransactionModal';
+import CreatePortfolioModal from '@/components/CreatePortfolioModal';
+import PortfolioSwitcher from '@/components/PortfolioSwitcher';
 import SkeletonCard from '@/components/skeletons/SkeletonCard';
 import SkeletonChartCard from '@/components/skeletons/SkeletonChartCard';
 import SkeletonTransactionCard from '@/components/skeletons/SkeletonTransactionCard';
+import SkeletonCollectiveStats from '@/components/skeletons/SkeletonCollectiveStats';
 import { Portfolio, Transaction, Holding, Stock } from '@/types';
 import {
   getPortfolios,
@@ -17,6 +20,7 @@ import {
   savePortfolio,
   getActivePortfolioId,
   setActivePortfolioId,
+  getTransactions,
 } from '@/lib/storage';
 import {
   getMultipleStocks,
@@ -44,6 +48,7 @@ export default function Dashboard() {
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [chartPeriod, setChartPeriod] = useState<'1d' | '5d' | '1m' | '6m' | 'ytd' | 'all'>('1m');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatePortfolioModalOpen, setIsCreatePortfolioModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const isUpdatingRef = useRef(false);
@@ -54,20 +59,35 @@ export default function Dashboard() {
     const loadPortfolios = async () => {
       try {
         const loadedPortfolios = await getPortfolios();
-        setPortfolios(loadedPortfolios);
+        // Load transactions for all portfolios
+        const portfoliosWithTransactions = await Promise.all(
+          loadedPortfolios.map(async (p) => {
+            const fullPortfolio = await getPortfolio(p.id);
+            if (fullPortfolio) {
+              return fullPortfolio;
+            }
+            // Fallback: if getPortfolio fails, still try to load transactions
+            const transactions = await getTransactions(p.id);
+            return {
+              ...p,
+              transactions: transactions || [],
+            };
+          })
+        );
+        setPortfolios(portfoliosWithTransactions);
 
         const activeId = await getActivePortfolioId();
         if (activeId) {
-          const portfolio = await getPortfolio(activeId);
+          const portfolio = portfoliosWithTransactions.find(p => p.id === activeId);
           if (portfolio) {
             setActivePortfolio(portfolio);
-          } else if (loadedPortfolios.length > 0) {
-            setActivePortfolio(loadedPortfolios[0]);
-            await setActivePortfolioId(loadedPortfolios[0].id);
+          } else if (portfoliosWithTransactions.length > 0) {
+            setActivePortfolio(portfoliosWithTransactions[0]);
+            await setActivePortfolioId(portfoliosWithTransactions[0].id);
           }
-        } else if (loadedPortfolios.length > 0) {
-          setActivePortfolio(loadedPortfolios[0]);
-          await setActivePortfolioId(loadedPortfolios[0].id);
+        } else if (portfoliosWithTransactions.length > 0) {
+          setActivePortfolio(portfoliosWithTransactions[0]);
+          await setActivePortfolioId(portfoliosWithTransactions[0].id);
         } else {
           // Create default portfolio
           const defaultPortfolio: Portfolio = {
@@ -182,6 +202,9 @@ export default function Dashboard() {
       };
       await savePortfolio(updatedPortfolio);
 
+      // Update the portfolios array with the updated portfolio
+      setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
+
       // Historical data will be fetched when period changes
     } catch (error) {
       console.error('Error updating portfolio:', error);
@@ -266,10 +289,81 @@ export default function Dashboard() {
 
     await savePortfolio(updatedPortfolio);
     setActivePortfolio(updatedPortfolio);
+    // Update the portfolios array with the updated portfolio (including new transaction)
+    setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
     // Reset the hash so updatePortfolio will run
     lastTransactionHashRef.current = '';
     updatePortfolio(updatedPortfolio);
   };
+
+  const handleCreatePortfolio = async (name: string, description?: string) => {
+    const newPortfolio: Portfolio = {
+      id: uuid(),
+      name,
+      description,
+      holdings: [],
+      transactions: [],
+      totalValue: 0,
+      totalCost: 0,
+      totalGainLoss: 0,
+      totalGainLossPercent: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await savePortfolio(newPortfolio);
+    const updatedPortfolios = await getPortfolios();
+    // Load transactions for all portfolios
+    const portfoliosWithTransactions = await Promise.all(
+      updatedPortfolios.map(async (p) => {
+        const fullPortfolio = await getPortfolio(p.id);
+        if (fullPortfolio) {
+          return fullPortfolio;
+        }
+        // Fallback: if getPortfolio fails, still try to load transactions
+        const transactions = await getTransactions(p.id);
+        return {
+          ...p,
+          transactions: transactions || [],
+        };
+      })
+    );
+    setPortfolios(portfoliosWithTransactions);
+    setActivePortfolio(newPortfolio);
+    await setActivePortfolioId(newPortfolio.id);
+    setLoading(false);
+    // Reset the hash so updatePortfolio will run
+    lastTransactionHashRef.current = '';
+    updatePortfolio(newPortfolio);
+  };
+
+  const handleSelectPortfolio = async (portfolioId: string) => {
+    const portfolio = await getPortfolio(portfolioId);
+    if (portfolio) {
+      setActivePortfolio(portfolio);
+      // Update the portfolios array with the loaded portfolio (including transactions)
+      setPortfolios(prev => prev.map(p => p.id === portfolioId ? portfolio : p));
+      await setActivePortfolioId(portfolioId);
+      // Reset the hash so updatePortfolio will run
+      lastTransactionHashRef.current = '';
+      updatePortfolio(portfolio);
+    }
+  };
+
+  // Calculate collective stats across all portfolios
+  const collectiveStats = portfolios.reduce(
+    (acc, p) => ({
+      totalValue: acc.totalValue + p.totalValue,
+      totalCost: acc.totalCost + p.totalCost,
+      totalGainLoss: acc.totalGainLoss + p.totalGainLoss,
+      totalTransactions: acc.totalTransactions + (p.transactions?.length || 0),
+    }),
+    { totalValue: 0, totalCost: 0, totalGainLoss: 0, totalTransactions: 0 }
+  );
+  const collectiveGainLossPercent =
+    collectiveStats.totalCost > 0
+      ? (collectiveStats.totalGainLoss / collectiveStats.totalCost) * 100
+      : 0;
 
   const portfolioStats = activePortfolio
     ? {
@@ -300,8 +394,8 @@ export default function Dashboard() {
         <>
           {/* Portfolio Header */}
           <div className="mb-6 sm:mb-8">
-            <div className="flex flex-row items-center justify-between gap-2 sm:gap-4 mb-4">
-              <div className="min-w-0 flex-1 pl-0.5 sm:pl-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+              <div className="flex-1 min-w-0">
                 {loading ? (
                   <div className="animate-pulse">
                     <div className="h-7 sm:h-8 lg:h-9 w-48 sm:w-64 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
@@ -309,9 +403,18 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                      {activePortfolio?.name || 'My Portfolio'}
-                    </h2>
+                    {!loading && portfolios.length > 0 ? (
+                      <PortfolioSwitcher
+                        portfolios={portfolios}
+                        activePortfolioId={activePortfolio?.id || null}
+                        onSelect={handleSelectPortfolio}
+                        onCreateNew={() => setIsCreatePortfolioModalOpen(true)}
+                      />
+                    ) : (
+                      <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                        {activePortfolio?.name || 'My Portfolio'}
+                      </h2>
+                    )}
                     <p className="hidden sm:block text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
                       {activePortfolio?.description || 'Track your investments'}
                     </p>
@@ -351,8 +454,83 @@ export default function Dashboard() {
             )}
           </div>
 
+          {/* Collective Performance (if multiple portfolios) */}
+          {loading ? (
+            <SkeletonCollectiveStats />
+          ) : portfolios.length > 1 && (
+            <div className="mb-6 sm:mb-8 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">
+                    All Portfolios Combined
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {portfolios.length} portfolios
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                    {formatCurrency(collectiveStats.totalValue)}
+                  </div>
+                  <div className={`text-sm sm:text-base font-medium ${
+                    collectiveGainLossPercent >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {collectiveGainLossPercent >= 0 ? '+' : ''}
+                    {collectiveGainLossPercent.toFixed(2)}%
+                  </div>
+                  <div className={`text-xs sm:text-sm ${
+                    collectiveStats.totalGainLoss >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {collectiveStats.totalGainLoss >= 0 ? '+' : ''}
+                    {formatCurrency(collectiveStats.totalGainLoss)}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <div className="text-gray-600 dark:text-gray-400">Total Cost</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency(collectiveStats.totalCost)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-600 dark:text-gray-400">Total Gain/Loss</div>
+                  <div className={`font-semibold ${
+                    collectiveStats.totalGainLoss >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {formatCurrency(collectiveStats.totalGainLoss)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-600 dark:text-gray-400">Transactions</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    {collectiveStats.totalTransactions}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-600 dark:text-gray-400">Portfolios</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    {portfolios.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Stats Grid */}
-          {loading || refreshing ? (
+          {loading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+              {[1, 2, 3, 4].map((i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonCard key={i} />
@@ -388,7 +566,9 @@ export default function Dashboard() {
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
               {/* Portfolio Performance Chart */}
-              {loading || refreshing || historicalData.length === 0 ? (
+              {loading ? (
+                <SkeletonChartCard />
+              ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 && historicalData.length > 0 ? (
                 <SkeletonChartCard />
               ) : historicalData.length > 0 ? (
                 <div className="rounded-lg border bg-white dark:bg-gray-800 p-3 sm:p-4 lg:p-6">
@@ -487,7 +667,9 @@ export default function Dashboard() {
               {/* Allocation Chart and Recent Transactions - Side by side on mobile */}
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-6">
                 {/* Allocation Chart */}
-                {loading || refreshing ? (
+                {loading ? (
+                  <SkeletonChartCard />
+                ) : refreshing && holdings.length > 0 ? (
                   <SkeletonChartCard />
                 ) : holdings.length > 0 ? (
                   <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
@@ -497,7 +679,9 @@ export default function Dashboard() {
                 ) : null}
 
                 {/* Recent Transactions Summary */}
-                {loading || refreshing ? (
+                {loading ? (
+                  <SkeletonTransactionCard />
+                ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 ? (
                   <SkeletonTransactionCard />
                 ) : activePortfolio && activePortfolio.transactions.length > 0 ? (
                   <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
@@ -558,6 +742,12 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)}
         onAdd={handleAddTransaction}
         existingSymbols={holdings.map(h => h.symbol)}
+      />
+
+      <CreatePortfolioModal
+        isOpen={isCreatePortfolioModalOpen}
+        onClose={() => setIsCreatePortfolioModalOpen(false)}
+        onCreate={handleCreatePortfolio}
       />
     </div>
   );

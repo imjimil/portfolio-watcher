@@ -109,9 +109,12 @@ export async function getPortfolio(id: string): Promise<Portfolio | null> {
       .eq('user_id', user.id)
       .single();
 
-    if (error || !data) return null;
+    if (error || !data) {
+      console.error('Error fetching portfolio data:', error);
+      return null;
+    }
 
-    // Load transactions
+    // Load transactions (will return empty array on error)
     const transactions = await getTransactions(id);
 
     return {
@@ -119,7 +122,7 @@ export async function getPortfolio(id: string): Promise<Portfolio | null> {
       name: data.name,
       description: data.description || undefined,
       holdings: [], // Will be calculated
-      transactions,
+      transactions: transactions || [], // Ensure it's always an array
       totalValue: Number(data.total_value) || 0,
       totalCost: Number(data.total_cost) || 0,
       totalGainLoss: Number(data.total_gain_loss) || 0,
@@ -152,26 +155,34 @@ export async function deletePortfolio(id: string): Promise<void> {
 }
 
 // Transactions
-async function getTransactions(portfolioId: string) {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('portfolio_id', portfolioId)
-    .order('date', { ascending: true });
+export async function getTransactions(portfolioId: string) {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('portfolio_id', portfolioId)
+      .order('date', { ascending: true });
 
-  if (error) throw error;
+    if (error) {
+      console.error('Error fetching transactions:', error);
+      return [];
+    }
 
-  return (data || []).map((t: any) => ({
-    id: t.id,
-    symbol: t.symbol,
-    type: t.type as 'buy' | 'sell' | 'dividend',
-    quantity: Number(t.quantity),
-    price: Number(t.price),
-    date: t.date,
-    fees: t.fees ? Number(t.fees) : undefined,
-    notes: t.notes || undefined,
-  }));
+    return (data || []).map((t: any) => ({
+      id: t.id,
+      symbol: t.symbol,
+      type: t.type as 'buy' | 'sell' | 'dividend',
+      quantity: Number(t.quantity),
+      price: Number(t.price),
+      date: t.date,
+      fees: t.fees ? Number(t.fees) : undefined,
+      notes: t.notes || undefined,
+    }));
+  } catch (error) {
+    console.error('Error in getTransactions:', error);
+    return [];
+  }
 }
 
 async function saveTransactions(portfolioId: string, transactions: any[]) {

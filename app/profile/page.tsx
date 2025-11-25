@@ -3,9 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import CreatePortfolioModal from '@/components/CreatePortfolioModal';
 import { createClient } from '@/lib/supabase/client';
-import { getPortfolios, getPortfolio, getActivePortfolioId, setActivePortfolioId, deletePortfolio } from '@/lib/storage';
+import { getPortfolios, getPortfolio, getActivePortfolioId, setActivePortfolioId, deletePortfolio, savePortfolio, getTransactions } from '@/lib/storage';
 import { Portfolio } from '@/types';
+
+// Simple UUID generator for client-side
+function uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 import {
   User,
   Mail,
@@ -48,6 +59,11 @@ export default function ProfilePage() {
   const [newName, setNewName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [deletingPortfolio, setDeletingPortfolio] = useState<string | null>(null);
+  const [isCreatePortfolioModalOpen, setIsCreatePortfolioModalOpen] = useState(false);
+  const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
+  const [editingPortfolioName, setEditingPortfolioName] = useState('');
+  const [editingPortfolioDescription, setEditingPortfolioDescription] = useState('');
+  const [savingPortfolio, setSavingPortfolio] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -78,7 +94,15 @@ export default function ProfilePage() {
         const portfoliosWithTransactions = await Promise.all(
           portfoliosData.map(async (p) => {
             const fullPortfolio = await getPortfolio(p.id);
-            return fullPortfolio || p;
+            if (fullPortfolio) {
+              return fullPortfolio;
+            }
+            // Fallback: if getPortfolio fails, still try to load transactions
+            const transactions = await getTransactions(p.id);
+            return {
+              ...p,
+              transactions: transactions || [],
+            };
           })
         );
         setPortfolios(portfoliosWithTransactions);
@@ -152,6 +176,49 @@ export default function ProfilePage() {
     }
   };
 
+  const handleRenamePortfolio = (portfolio: Portfolio) => {
+    setEditingPortfolioId(portfolio.id);
+    setEditingPortfolioName(portfolio.name);
+    setEditingPortfolioDescription(portfolio.description || '');
+  };
+
+  const handleSavePortfolioRename = async (portfolioId: string) => {
+    if (!editingPortfolioName.trim()) {
+      alert('Portfolio name cannot be empty');
+      return;
+    }
+
+    setSavingPortfolio(true);
+    try {
+      const portfolio = portfolios.find(p => p.id === portfolioId);
+      if (!portfolio) return;
+
+      const updatedPortfolio: Portfolio = {
+        ...portfolio,
+        name: editingPortfolioName.trim(),
+        description: editingPortfolioDescription.trim() || undefined,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await savePortfolio(updatedPortfolio);
+      setPortfolios(portfolios.map(p => p.id === portfolioId ? updatedPortfolio : p));
+      setEditingPortfolioId(null);
+      setEditingPortfolioName('');
+      setEditingPortfolioDescription('');
+    } catch (error) {
+      console.error('Error renaming portfolio:', error);
+      alert('Failed to rename portfolio');
+    } finally {
+      setSavingPortfolio(false);
+    }
+  };
+
+  const handleCancelRename = () => {
+    setEditingPortfolioId(null);
+    setEditingPortfolioName('');
+    setEditingPortfolioDescription('');
+  };
+
   const handleDeletePortfolio = async (portfolioId: string) => {
     if (!confirm('Are you sure you want to delete this portfolio? This action cannot be undone.')) {
       return;
@@ -176,6 +243,42 @@ export default function ProfilePage() {
     } finally {
       setDeletingPortfolio(null);
     }
+  };
+
+  const handleCreatePortfolio = async (name: string, description?: string) => {
+    const newPortfolio: Portfolio = {
+      id: uuid(),
+      name,
+      description,
+      holdings: [],
+      transactions: [],
+      totalValue: 0,
+      totalCost: 0,
+      totalGainLoss: 0,
+      totalGainLossPercent: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await savePortfolio(newPortfolio);
+    const updatedPortfolios = await getPortfolios();
+    const portfoliosWithTransactions = await Promise.all(
+      updatedPortfolios.map(async (p) => {
+        const fullPortfolio = await getPortfolio(p.id);
+        return fullPortfolio || p;
+      })
+    );
+    setPortfolios(portfoliosWithTransactions);
+
+    // Update stats
+    const totalTransactions = portfoliosWithTransactions.reduce((sum, p) => sum + (p.transactions?.length || 0), 0);
+    const totalValue = portfoliosWithTransactions.reduce((sum, p) => sum + p.totalValue, 0);
+    setStats({
+      totalPortfolios: portfoliosWithTransactions.length,
+      totalTransactions,
+      totalWatchlistItems: stats.totalWatchlistItems,
+      totalValue,
+    });
   };
 
   const handleExportData = async () => {
@@ -389,7 +492,7 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Portfolio Management</h2>
                 <button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => setIsCreatePortfolioModalOpen(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
                   <Plus className="h-4 w-4" />
@@ -410,51 +513,119 @@ export default function ProfilePage() {
                       className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                            {portfolio.name}
-                          </h3>
-                          {activePortfolioId === portfolio.id && (
-                            <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
-                              Active
-                            </span>
-                          )}
-                        </div>
-                        {portfolio.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                            {portfolio.description}
-                          </p>
+                        {editingPortfolioId === portfolio.id ? (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Portfolio Name
+                              </label>
+                              <input
+                                type="text"
+                                value={editingPortfolioName}
+                                onChange={(e) => setEditingPortfolioName(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                placeholder="Portfolio name"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Description <span className="text-gray-400">(optional)</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={editingPortfolioDescription}
+                                onChange={(e) => setEditingPortfolioDescription(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                placeholder="Portfolio description"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSavePortfolioRename(portfolio.id)}
+                                disabled={savingPortfolio || !editingPortfolioName.trim()}
+                                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                              >
+                                {savingPortfolio ? (
+                                  <>
+                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    <span>Saving...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="h-3 w-3" />
+                                    <span>Save</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={handleCancelRename}
+                                disabled={savingPortfolio}
+                                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                              >
+                                <X className="h-3 w-3" />
+                                <span>Cancel</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                                {portfolio.name}
+                              </h3>
+                              {activePortfolioId === portfolio.id && (
+                                <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
+                                  Active
+                                </span>
+                              )}
+                            </div>
+                            {portfolio.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                {portfolio.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                              <span>{formatCurrency(portfolio.totalValue)}</span>
+                              <span>
+                                {portfolio.totalGainLossPercent >= 0 ? '+' : ''}
+                                {portfolio.totalGainLossPercent.toFixed(2)}%
+                              </span>
+                              <span>{portfolio.transactions?.length || 0} transactions</span>
+                            </div>
+                          </>
                         )}
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
-                          <span>{formatCurrency(portfolio.totalValue)}</span>
-                          <span>
-                            {portfolio.totalGainLossPercent >= 0 ? '+' : ''}
-                            {portfolio.totalGainLossPercent.toFixed(2)}%
-                          </span>
-                          <span>{portfolio.transactions?.length || 0} transactions</span>
-                        </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        {activePortfolioId !== portfolio.id && (
+                      {editingPortfolioId !== portfolio.id && (
+                        <div className="flex items-center gap-2 ml-4">
                           <button
-                            onClick={() => handleSetActivePortfolio(portfolio.id)}
-                            className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            onClick={() => handleRenamePortfolio(portfolio)}
+                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            title="Rename portfolio"
                           >
-                            Set Active
+                            <Edit className="h-4 w-4" />
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDeletePortfolio(portfolio.id)}
-                          disabled={deletingPortfolio === portfolio.id}
-                          className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          {deletingPortfolio === portfolio.id ? (
-                            <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin"></div>
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
+                          {activePortfolioId !== portfolio.id && (
+                            <button
+                              onClick={() => handleSetActivePortfolio(portfolio.id)}
+                              className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                              Set Active
+                            </button>
                           )}
-                        </button>
-                      </div>
+                          <button
+                            onClick={() => handleDeletePortfolio(portfolio.id)}
+                            disabled={deletingPortfolio === portfolio.id}
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                            title="Delete portfolio"
+                          >
+                            {deletingPortfolio === portfolio.id ? (
+                              <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin"></div>
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -503,6 +674,12 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
+
+      <CreatePortfolioModal
+        isOpen={isCreatePortfolioModalOpen}
+        onClose={() => setIsCreatePortfolioModalOpen(false)}
+        onCreate={handleCreatePortfolio}
+      />
     </div>
   );
 }

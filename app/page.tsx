@@ -10,6 +10,7 @@ import AddTransactionModal from '@/components/AddTransactionModal';
 import { Portfolio, Transaction, Holding, Stock } from '@/types';
 import {
   getPortfolios,
+  getPortfolio,
   savePortfolio,
   getActivePortfolioId,
   setActivePortfolioId,
@@ -47,40 +48,49 @@ export default function Dashboard() {
 
   // Load portfolios on mount
   useEffect(() => {
-    const loadedPortfolios = getPortfolios();
-    setPortfolios(loadedPortfolios);
+    const loadPortfolios = async () => {
+      try {
+        const loadedPortfolios = await getPortfolios();
+        setPortfolios(loadedPortfolios);
 
-    const activeId = getActivePortfolioId();
-    if (activeId) {
-      const portfolio = loadedPortfolios.find(p => p.id === activeId);
-      if (portfolio) {
-        setActivePortfolio(portfolio);
-      } else if (loadedPortfolios.length > 0) {
-        setActivePortfolio(loadedPortfolios[0]);
-        setActivePortfolioId(loadedPortfolios[0].id);
+        const activeId = await getActivePortfolioId();
+        if (activeId) {
+          const portfolio = await getPortfolio(activeId);
+          if (portfolio) {
+            setActivePortfolio(portfolio);
+          } else if (loadedPortfolios.length > 0) {
+            setActivePortfolio(loadedPortfolios[0]);
+            await setActivePortfolioId(loadedPortfolios[0].id);
+          }
+        } else if (loadedPortfolios.length > 0) {
+          setActivePortfolio(loadedPortfolios[0]);
+          await setActivePortfolioId(loadedPortfolios[0].id);
+        } else {
+          // Create default portfolio
+          const defaultPortfolio: Portfolio = {
+            id: uuid(),
+            name: 'My Portfolio',
+            holdings: [],
+            transactions: [],
+            totalValue: 0,
+            totalCost: 0,
+            totalGainLoss: 0,
+            totalGainLossPercent: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await savePortfolio(defaultPortfolio);
+          setPortfolios([defaultPortfolio]);
+          setActivePortfolio(defaultPortfolio);
+          await setActivePortfolioId(defaultPortfolio.id);
+        }
+      } catch (error) {
+        console.error('Error loading portfolios:', error);
+        setLoading(false);
       }
-    } else if (loadedPortfolios.length > 0) {
-      setActivePortfolio(loadedPortfolios[0]);
-      setActivePortfolioId(loadedPortfolios[0].id);
-    } else {
-      // Create default portfolio
-      const defaultPortfolio: Portfolio = {
-        id: uuid(),
-        name: 'My Portfolio',
-        holdings: [],
-        transactions: [],
-        totalValue: 0,
-        totalCost: 0,
-        totalGainLoss: 0,
-        totalGainLossPercent: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      savePortfolio(defaultPortfolio);
-      setPortfolios([defaultPortfolio]);
-      setActivePortfolio(defaultPortfolio);
-      setActivePortfolioId(defaultPortfolio.id);
-    }
+    };
+
+    loadPortfolios();
   }, []);
 
   // Update portfolio when active portfolio changes
@@ -167,7 +177,7 @@ export default function Dashboard() {
         totalGainLossPercent,
         updatedAt: new Date().toISOString(),
       };
-      savePortfolio(updatedPortfolio);
+      await savePortfolio(updatedPortfolio);
 
       // Historical data will be fetched when period changes
     } catch (error) {
@@ -237,7 +247,7 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartPeriod, activePortfolio?.transactions.length]);
 
-  const handleAddTransaction = (transactionData: Omit<Transaction, 'id'>) => {
+  const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>) => {
     if (!activePortfolio) return;
 
     const newTransaction: Transaction = {
@@ -251,7 +261,7 @@ export default function Dashboard() {
       updatedAt: new Date().toISOString(),
     };
 
-    savePortfolio(updatedPortfolio);
+    await savePortfolio(updatedPortfolio);
     setActivePortfolio(updatedPortfolio);
     // Reset the hash so updatePortfolio will run
     lastTransactionHashRef.current = '';

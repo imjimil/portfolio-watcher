@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Navbar from '@/components/Navbar';
 import HoldingsTable from '@/components/HoldingsTable';
 import { Portfolio, Holding, Stock } from '@/types';
-import { getPortfolios, getActivePortfolioId, savePortfolio } from '@/lib/storage';
+import { getPortfolios, getActivePortfolioId, getPortfolio, savePortfolio } from '@/lib/storage';
 import { getMultipleStocks, calculateHoldings } from '@/lib/stockService';
 
 export default function HoldingsPage() {
@@ -14,15 +14,24 @@ export default function HoldingsPage() {
   const lastTransactionHashRef = useRef<string>('');
 
   useEffect(() => {
-    const loadedPortfolios = getPortfolios();
-    const activeId = getActivePortfolioId();
-    const portfolio = activeId 
-      ? loadedPortfolios.find(p => p.id === activeId) || loadedPortfolios[0]
-      : loadedPortfolios[0];
-    
-    if (portfolio) {
-      setActivePortfolio(portfolio);
-    }
+    const loadPortfolio = async () => {
+      try {
+        const loadedPortfolios = await getPortfolios();
+        const activeId = await getActivePortfolioId();
+        const portfolio = activeId 
+          ? await getPortfolio(activeId) || loadedPortfolios[0]
+          : loadedPortfolios[0];
+        
+        if (portfolio) {
+          setActivePortfolio(portfolio);
+        }
+      } catch (error) {
+        console.error('Error loading portfolio:', error);
+        setLoading(false);
+      }
+    };
+
+    loadPortfolio();
   }, []);
 
   useEffect(() => {

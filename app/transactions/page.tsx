@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import TransactionHistory from '@/components/TransactionHistory';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import { Portfolio, Transaction, Holding } from '@/types';
-import { getPortfolios, getActivePortfolioId, savePortfolio } from '@/lib/storage';
+import { getPortfolios, getActivePortfolioId, getPortfolio, savePortfolio } from '@/lib/storage';
 import { getMultipleStocks, calculateHoldings } from '@/lib/stockService';
 import { exportTransactionsToCSV, downloadCSV } from '@/lib/export';
 
@@ -27,16 +27,25 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadedPortfolios = getPortfolios();
-    const activeId = getActivePortfolioId();
-    const portfolio = activeId 
-      ? loadedPortfolios.find(p => p.id === activeId) || loadedPortfolios[0]
-      : loadedPortfolios[0];
-    
-    if (portfolio) {
-      setActivePortfolio(portfolio);
-    }
-    setLoading(false);
+    const loadPortfolio = async () => {
+      try {
+        const loadedPortfolios = await getPortfolios();
+        const activeId = await getActivePortfolioId();
+        const portfolio = activeId 
+          ? await getPortfolio(activeId) || loadedPortfolios[0]
+          : loadedPortfolios[0];
+        
+        if (portfolio) {
+          setActivePortfolio(portfolio);
+        }
+      } catch (error) {
+        console.error('Error loading portfolio:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPortfolio();
   }, []);
 
   const updateHoldings = async () => {
@@ -74,7 +83,7 @@ export default function TransactionsPage() {
     }
   }, [activePortfolio]);
 
-  const handleAddTransaction = (transactionData: Omit<Transaction, 'id'>) => {
+  const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>) => {
     if (!activePortfolio) return;
 
     const newTransaction: Transaction = {
@@ -88,12 +97,12 @@ export default function TransactionsPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    savePortfolio(updatedPortfolio);
+    await savePortfolio(updatedPortfolio);
     setActivePortfolio(updatedPortfolio);
     updateHoldings();
   };
 
-  const handleDeleteTransaction = (transactionId: string) => {
+  const handleDeleteTransaction = async (transactionId: string) => {
     if (!activePortfolio) return;
 
     const updatedPortfolio: Portfolio = {
@@ -102,7 +111,7 @@ export default function TransactionsPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    savePortfolio(updatedPortfolio);
+    await savePortfolio(updatedPortfolio);
     setActivePortfolio(updatedPortfolio);
     updateHoldings();
   };
@@ -112,7 +121,7 @@ export default function TransactionsPage() {
     setIsModalOpen(true);
   };
 
-  const handleUpdateTransaction = (id: string, transactionData: Omit<Transaction, 'id'>) => {
+  const handleUpdateTransaction = async (id: string, transactionData: Omit<Transaction, 'id'>) => {
     if (!activePortfolio) return;
 
     const updatedPortfolio: Portfolio = {
@@ -123,7 +132,7 @@ export default function TransactionsPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    savePortfolio(updatedPortfolio);
+    await savePortfolio(updatedPortfolio);
     setActivePortfolio(updatedPortfolio);
     updateHoldings();
   };

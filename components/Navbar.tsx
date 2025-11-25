@@ -1,16 +1,39 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import { Moon, Sun, TrendingUp, Wallet, List, Eye, Menu, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { Moon, Sun, TrendingUp, Wallet, List, Eye, Menu, X, LogOut } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: TrendingUp },
@@ -31,7 +54,7 @@ export default function Navbar() {
             <h1 className="text-lg sm:text-xl font-bold truncate">Portfolio Tracker</h1>
           </Link>
 
-          {/* Right side - Theme toggle, Desktop Navigation, and mobile menu */}
+          {/* Right side - Theme toggle, Desktop Navigation, Logout, and mobile menu */}
           <div className="flex items-center gap-2">
             <button
               onClick={toggleTheme}
@@ -44,6 +67,17 @@ export default function Navbar() {
                 <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
               )}
             </button>
+            
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </button>
+            )}
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
               {navItems.map((item) => {
@@ -103,6 +137,18 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {user && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -17,9 +17,17 @@ export default function Watchlist() {
   const INITIAL_RESULTS_COUNT = 8; // Show first 8 results initially
 
   useEffect(() => {
-    const loaded = getWatchlist();
-    setWatchlist(loaded);
-    updatePrices(loaded);
+    const loadWatchlist = async () => {
+      try {
+        const loaded = await getWatchlist();
+        setWatchlist(loaded);
+        updatePrices(loaded);
+      } catch (error) {
+        console.error('Error loading watchlist:', error);
+      }
+    };
+
+    loadWatchlist();
   }, []);
 
   // Debounced search - only search after user stops typing for 500ms
@@ -116,7 +124,7 @@ export default function Watchlist() {
         };
         const updated = [...watchlist, newItem];
         setWatchlist(updated);
-        saveWatchlist(updated);
+        await saveWatchlist(updated);
         setSearchQuery('');
         setSearchResults([]);
         setIsAdding(false);
@@ -138,10 +146,10 @@ export default function Watchlist() {
     }
   };
 
-  const handleRemove = (symbol: string) => {
+  const handleRemove = async (symbol: string) => {
     const updated = watchlist.filter(w => w.symbol !== symbol);
     setWatchlist(updated);
-    saveWatchlist(updated);
+    await saveWatchlist(updated);
   };
 
   return (

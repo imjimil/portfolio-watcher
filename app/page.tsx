@@ -467,9 +467,7 @@ export default function Dashboard() {
                 {holdings.length > 0 && (
                   <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
                     <h3 className="text-xs sm:text-base lg:text-lg font-semibold mb-2 sm:mb-3 lg:mb-4">Portfolio Allocation</h3>
-                    <div className="scale-75 sm:scale-100 origin-top-left">
-                      <AllocationChart holdings={holdings} />
-                    </div>
+                    <AllocationChart holdings={holdings} />
                   </div>
                 )}
 

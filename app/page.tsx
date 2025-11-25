@@ -378,7 +378,7 @@ export default function Dashboard() {
                           {formatCurrency(activePortfolio.totalValue)}
                         </div>
                       )}
-                      {/* Portfolio value in selected range with change */}
+                      {/* Amount gained/lost in selected range with percentage change */}
                       {historicalData.length > 0 && (() => {
                         const startValue = historicalData[0]?.price || 0;
                         const startCostBasis = historicalData[0]?.volume || 0;
@@ -386,24 +386,33 @@ export default function Dashboard() {
                         const endCostBasis = historicalData[historicalData.length - 1]?.volume || 0;
                         
                         let rangePercentChange = 0;
+                        let amountChange = 0;
+                        
                         if (chartPeriod === 'all' && activePortfolio?.totalValue && activePortfolio?.totalCost) {
+                          // For "all time", show total gain/loss from cost basis
+                          amountChange = activePortfolio.totalValue - activePortfolio.totalCost;
                           rangePercentChange = ((activePortfolio.totalValue - activePortfolio.totalCost) / activePortfolio.totalCost) * 100;
                         } else if (chartPeriod === '1d') {
                           // For 1d (intraday), compare opening to current (today's movement)
                           if (startValue > 0) {
+                            amountChange = endValue - startValue;
                             rangePercentChange = ((endValue - startValue) / startValue) * 100;
                           }
                         } else {
+                          // For other periods, calculate change in gain percentage
                           const startGainPercent = startCostBasis > 0 ? ((startValue - startCostBasis) / startCostBasis) * 100 : 0;
                           const endGainPercent = endCostBasis > 0 ? ((endValue - endCostBasis) / endCostBasis) * 100 : 0;
                           rangePercentChange = endGainPercent - startGainPercent;
+                          // Calculate amount change based on the change in portfolio value
+                          amountChange = endValue - startValue;
                         }
-                        const isPositive = rangePercentChange >= 0;
+                        
+                        const isPositive = amountChange >= 0;
                         
                         return (
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                              {formatCurrency(endValue)}
+                            <span className={`text-sm sm:text-base font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {isPositive ? '+' : ''}{formatCurrency(amountChange)}
                             </span>
                             <span className={`text-sm sm:text-base font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                               {isPositive ? '+' : ''}{rangePercentChange.toFixed(2)}%

@@ -5,11 +5,24 @@ import { HistoricalData } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, period, currentValue, costBasis }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const value = data.value;
-    const gainPercent = data.gainPercent || 0;
+    
+    // Calculate percentage based on period
+    let gainPercent = 0;
+    if (period === 'all' && currentValue !== undefined && costBasis !== undefined && costBasis > 0) {
+      // For "all time", show total gain/loss from cost basis
+      gainPercent = ((value - costBasis) / costBasis) * 100;
+    } else {
+      // For all other periods, calculate from start point of the graph
+      const startValue = data.startValue || 0;
+      if (startValue > 0) {
+        gainPercent = ((value - startValue) / startValue) * 100;
+      }
+    }
+    
     const isPositive = gainPercent >= 0;
     
     // Format date from dateFull or label
@@ -111,15 +124,13 @@ export default function PortfolioChart({
     
     const costBasis = item.volume || 0;
     const value = item.price;
-    // Calculate gain/loss percentage for this data point
-    const gainPercent = costBasis > 0 ? ((value - costBasis) / costBasis) * 100 : 0;
     
     return {
       date: displayDate,
       dateFull: dateFull, // Keep original date/datetime string for tooltip
       value: item.price, // Use actual dollar value
       costBasis: costBasis, // Cost basis stored in volume field
-      gainPercent: gainPercent, // Gain/loss percentage for this point
+      startValue: startValue, // Store start value for percentage calculation
     };
   });
 
@@ -196,7 +207,7 @@ export default function PortfolioChart({
             hide={true}
             domain={[minValue - padding, maxValue + padding]}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip period={period} currentValue={currentValue} costBasis={costBasis} />} />
           {/* Reference line at starting value */}
           {startValue > 0 && (
             <ReferenceLine 

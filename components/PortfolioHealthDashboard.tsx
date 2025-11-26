@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Holding } from '@/types';
 import { formatPercent, cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
+import { AlertTriangle, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PortfolioHealthDashboardProps {
   holdings: Holding[];
@@ -11,6 +11,7 @@ interface PortfolioHealthDashboardProps {
 }
 
 export default function PortfolioHealthDashboard({ holdings, totalValue }: PortfolioHealthDashboardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const healthMetrics = useMemo(() => {
     if (holdings.length === 0) {
       return {
@@ -105,62 +106,83 @@ export default function PortfolioHealthDashboard({ holdings, totalValue }: Portf
         </p>
       </div>
 
-      {/* Concentration Warnings */}
-      {concentrationWarnings.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Concentration Warnings</span>
+      {/* Mobile: Expand/Collapse Button */}
+      <div className="sm:hidden mb-4">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center justify-between w-full p-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <span>{isExpanded ? 'Hide details' : 'Show details'}</span>
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+
+      {/* Details Section - Hidden on mobile unless expanded, always visible on desktop */}
+      <div className={cn(
+        'sm:block',
+        isExpanded ? 'block' : 'hidden'
+      )}>
+        {/* Concentration Warnings */}
+        {concentrationWarnings.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Concentration Warnings</span>
+            </div>
+            <div className="space-y-2">
+              {concentrationWarnings.map((warning, idx) => (
+                <div key={idx} className="text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
+                  {warning}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top Holdings */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Holdings</span>
           </div>
           <div className="space-y-2">
-            {concentrationWarnings.map((warning, idx) => (
-              <div key={idx} className="text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
-                {warning}
+            {topHoldings.map((holding, idx) => (
+              <div key={holding.symbol} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 dark:text-gray-400 w-4">{idx + 1}.</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{holding.symbol}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full"
+                      style={{ width: `${Math.min(100, holding.allocation)}%` }}
+                    />
+                  </div>
+                  <span className="text-gray-600 dark:text-gray-400 w-12 text-right">
+                    {formatPercent(holding.allocation, 1)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Top Holdings */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Holdings</span>
-        </div>
-        <div className="space-y-2">
-          {topHoldings.map((holding, idx) => (
-            <div key={holding.symbol} className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 dark:text-gray-400 w-4">{idx + 1}.</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{holding.symbol}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full"
-                    style={{ width: `${Math.min(100, holding.allocation)}%` }}
-                  />
-                </div>
-                <span className="text-gray-600 dark:text-gray-400 w-12 text-right">
-                  {formatPercent(holding.allocation, 1)}
-                </span>
-              </div>
+        {/* Summary Stats */}
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Total Holdings</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{holdingsCount}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Portfolio Value</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {formatPercent((totalValue / (totalValue || 1)) * 100, 0)}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Summary Stats */}
-      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
-        <div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Total Holdings</div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{holdingsCount}</div>
-        </div>
-        <div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Portfolio Value</div>
-          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {formatPercent((totalValue / (totalValue || 1)) * 100, 0)}
           </div>
         </div>
       </div>

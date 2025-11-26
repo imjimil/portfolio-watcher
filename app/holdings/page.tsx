@@ -5,11 +5,12 @@ import Navbar from '@/components/Navbar';
 import HoldingsTable from '@/components/HoldingsTable';
 import PerformanceComparison from '@/components/PerformanceComparison';
 import PortfolioHealthDashboard from '@/components/PortfolioHealthDashboard';
+import SkeletonHoldings from '@/components/skeletons/SkeletonHoldings';
 import { Portfolio, Holding, Stock, Transaction } from '@/types';
 import { getPortfolios, getActivePortfolioId, getPortfolio, savePortfolio } from '@/lib/storage';
 import { getMultipleStocks, calculateHoldings, getHistoricalData } from '@/lib/stockService';
 import { parseLocalDate } from '@/lib/utils';
-import { exportHoldingsToCSV, exportTaxReport } from '@/lib/exportHoldings';
+import { exportHoldingsToCSV } from '@/lib/exportHoldings';
 import { Download } from 'lucide-react';
 
 // Simple UUID generator
@@ -32,6 +33,7 @@ export default function HoldingsPage() {
   useEffect(() => {
     const loadPortfolio = async () => {
       try {
+        setLoading(true);
         const loadedPortfolios = await getPortfolios();
         const activeId = await getActivePortfolioId();
         const portfolio = activeId 
@@ -40,6 +42,9 @@ export default function HoldingsPage() {
         
         if (portfolio) {
           setActivePortfolio(portfolio);
+        } else {
+          // No portfolio found, but we've finished loading
+          setLoading(false);
         }
       } catch (error) {
         console.error('Error loading portfolio:', error);
@@ -139,7 +144,7 @@ export default function HoldingsPage() {
 
   useEffect(() => {
     if (!activePortfolio) {
-      setLoading(false);
+      // Keep loading true until we have a portfolio
       return;
     }
 
@@ -151,6 +156,7 @@ export default function HoldingsPage() {
     }
 
     lastTransactionHashRef.current = transactionHash;
+    setLoading(true); // Ensure loading is true when starting to fetch
 
     const updateHoldings = async () => {
       try {
@@ -234,26 +240,14 @@ export default function HoldingsPage() {
               >
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Export CSV</span>
-              </button>
-              <button
-                onClick={() => exportTaxReport(holdings, activePortfolio?.name || 'Portfolio')}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
-                title="Export Tax Report"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Tax Report</span>
+                <span className="sm:hidden">Export</span>
               </button>
             </div>
           )}
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading holdings...</p>
-            </div>
-          </div>
+          <SkeletonHoldings />
         ) : (
           <>
             <PortfolioHealthDashboard 

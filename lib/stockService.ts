@@ -97,7 +97,7 @@ export async function searchStocks(query: string): Promise<Stock[]> {
 }
 
 /**
- * Get stock quote data from Yahoo Finance
+ * Get stock quote data from Yahoo Finance with extended metrics
  */
 async function getQuoteData(symbol: string): Promise<{
   currentPrice: number;
@@ -105,6 +105,12 @@ async function getQuoteData(symbol: string): Promise<{
   change: number;
   changePercent: number;
   volume: number;
+  marketCap?: number;
+  peRatio?: number;
+  dividendYield?: number;
+  high52Week?: number;
+  low52Week?: number;
+  beta?: number;
 } | null> {
   const upperSymbol = symbol.toUpperCase();
 
@@ -119,6 +125,14 @@ async function getQuoteData(symbol: string): Promise<{
       const meta = result.meta || {};
       const indicators = result.indicators || {};
       const quote = indicators.quote || [];
+      
+      // Extract additional metrics from meta
+      const marketCap = meta.marketCap || meta.regularMarketMarketCap || undefined;
+      const peRatio = meta.trailingPE || meta.forwardPE || undefined;
+      const dividendYield = meta.dividendYield ? meta.dividendYield * 100 : undefined; // Convert to percentage
+      const high52Week = meta.fiftyTwoWeekHigh || meta.regularMarketDayHigh || undefined;
+      const low52Week = meta.fiftyTwoWeekLow || meta.regularMarketDayLow || undefined;
+      const beta = meta.beta || undefined;
       
       if (quote.length > 0 && quote[0].close) {
         const closes = quote[0].close.filter((v: number) => v !== null);
@@ -137,6 +151,12 @@ async function getQuoteData(symbol: string): Promise<{
             change,
             changePercent,
             volume,
+            marketCap,
+            peRatio,
+            dividendYield,
+            high52Week,
+            low52Week,
+            beta,
           };
         }
       }
@@ -154,6 +174,12 @@ async function getQuoteData(symbol: string): Promise<{
           change,
           changePercent,
           volume: meta.regularMarketVolume || 0,
+          marketCap,
+          peRatio,
+          dividendYield,
+          high52Week,
+          low52Week,
+          beta,
         };
       }
     }
@@ -166,7 +192,7 @@ async function getQuoteData(symbol: string): Promise<{
 }
 
 /**
- * Get stock data with price information only (1 API call)
+ * Get stock data with price information and extended metrics (1 API call)
  * Use this when you already have the name from search results
  */
 export async function getStockPriceData(symbol: string, name?: string): Promise<Stock | null> {
@@ -187,6 +213,11 @@ export async function getStockPriceData(symbol: string, name?: string): Promise<
       change: quoteData.change,
       changePercent: quoteData.changePercent,
       volume: quoteData.volume,
+      marketCap: quoteData.marketCap,
+      peRatio: quoteData.peRatio,
+      dividendYield: quoteData.dividendYield,
+      high52Week: quoteData.high52Week,
+      low52Week: quoteData.low52Week,
     };
   } catch (error) {
     console.error(`Error fetching stock price data for ${upperSymbol}:`, error);

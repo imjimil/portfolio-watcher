@@ -15,6 +15,8 @@ interface AddTransactionModalProps {
   editingTransaction?: Transaction | null;
   portfolios?: Portfolio[];
   activePortfolioId?: string | null;
+  prefillSymbol?: string;
+  prefillType?: 'buy' | 'sell' | 'dividend';
 }
 
 export default function AddTransactionModal({
@@ -26,6 +28,8 @@ export default function AddTransactionModal({
   editingTransaction = null,
   portfolios = [],
   activePortfolioId = null,
+  prefillSymbol,
+  prefillType = 'buy',
 }: AddTransactionModalProps) {
   const isEditing = !!editingTransaction;
   const [symbol, setSymbol] = useState('');
@@ -60,18 +64,40 @@ export default function AddTransactionModal({
         setDate(editingTransaction.date);
         setNotes(editingTransaction.notes || '');
       } else {
-        // Reset form when adding new transaction
-        setSymbol('');
-        setType('buy');
+        // Reset form when adding new transaction, or use prefilled values
+        setSymbol(prefillSymbol || '');
+        setType(prefillType || 'buy');
         setQuantity('');
         setPrice('');
         setFees('');
         setDate(new Date().toISOString().split('T')[0]);
         setNotes('');
+        // Auto-fetch price if symbol is prefilled (will be handled in useEffect below)
       }
       setError('');
     }
-  }, [isOpen, editingTransaction]);
+  }, [isOpen, editingTransaction, prefillSymbol, prefillType]);
+
+  // Auto-fetch price when modal opens with prefilled symbol
+  useEffect(() => {
+    if (isOpen && !isEditing && prefillSymbol && symbol === prefillSymbol && !price) {
+      const fetchPrice = async () => {
+        if (!symbol.trim()) return;
+        setLoading(true);
+        try {
+          const stock = await getStockData(symbol.toUpperCase());
+          if (stock) {
+            setPrice(stock.currentPrice.toFixed(2));
+          }
+        } catch (err) {
+          // Silently fail for auto-fetch
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchPrice();
+    }
+  }, [isOpen, prefillSymbol, symbol, price, isEditing]);
 
   const handleFetchPrice = async () => {
     if (!symbol.trim()) {

@@ -35,6 +35,17 @@ export interface Holding {
   gainLoss: number;
   gainLossPercent: number;
   allocation: number; // Percentage of portfolio
+  // Extended metrics
+  marketCap?: number;
+  peRatio?: number;
+  dividendYield?: number;
+  high52Week?: number;
+  low52Week?: number;
+  beta?: number;
+  daysHeld?: number;
+  realizedGain?: number;
+  unrealizedGain?: number;
+  firstPurchaseDate?: string;
 }
 
 export interface Portfolio {

@@ -290,33 +290,11 @@ export default function Dashboard() {
 
       try {
         // Calculate actual portfolio value over time based on all holdings and transactions
-        let histData = await calculateHistoricalPortfolioValue(
+        // This will properly account for when transactions occurred
+        const histData = await calculateHistoricalPortfolioValue(
           activePortfolio.transactions,
           chartPeriod
         );
-        
-        // Add current portfolio value as the last data point if we have holdings
-        // Use the most up-to-date totalValue and totalCost from the portfolio
-        if (holdings.length > 0 && activePortfolio.totalValue > 0) {
-          const today = new Date().toISOString().split('T')[0];
-          const isIntraday = chartPeriod === '1d';
-          // For intraday (1d), check if last data point is today (might have time component)
-          const lastDate = histData.length > 0 ? histData[histData.length - 1].date : null;
-          const lastDateOnly = lastDate ? lastDate.split(' ')[0] : null;
-          
-          if (!lastDateOnly || lastDateOnly !== today) {
-            // Add new data point with current values
-            histData.push({
-              date: isIntraday ? `${today} ${new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })}` : today,
-              price: activePortfolio.totalValue,
-              volume: activePortfolio.totalCost || 0, // Store cost basis in volume field
-            });
-          } else {
-            // Update the last data point with current value and cost basis
-            histData[histData.length - 1].price = activePortfolio.totalValue;
-            histData[histData.length - 1].volume = activePortfolio.totalCost || 0;
-          }
-        }
         
         setHistoricalData(histData);
       } catch (error) {
@@ -327,7 +305,12 @@ export default function Dashboard() {
 
     fetchHistoricalPortfolioData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartPeriod, activePortfolio?.transactions.length, activePortfolio?.totalValue, activePortfolio?.totalCost]);
+  }, [
+    chartPeriod, 
+    activePortfolio?.id,
+    // Use transaction hash to detect actual changes
+    activePortfolio?.transactions.map(t => t.id).sort().join(',')
+  ]);
 
   const handleAddTransaction = async (transactionData: Omit<Transaction, 'id'>, portfolioId: string) => {
     // Find the portfolio to add the transaction to
@@ -644,45 +627,27 @@ export default function Dashboard() {
                           {formatCurrency(activePortfolio.totalValue)}
                         </div>
                       )}
-                      {/* Amount gained/lost in selected range with percentage change */}
-                      {historicalData.length > 0 && (() => {
-                        const startValue = historicalData[0]?.price || 0;
-                        const startCostBasis = historicalData[0]?.volume || 0;
-                        const endValue = historicalData[historicalData.length - 1]?.price || 0;
-                        const endCostBasis = historicalData[historicalData.length - 1]?.volume || 0;
-                        
-                        let rangePercentChange = 0;
-                        let amountChange = 0;
-                        
-                        if (chartPeriod === 'all' && activePortfolio?.totalValue && activePortfolio?.totalCost) {
-                          // For "all time", show total gain/loss from cost basis
-                          amountChange = activePortfolio.totalValue - activePortfolio.totalCost;
-                          rangePercentChange = ((activePortfolio.totalValue - activePortfolio.totalCost) / activePortfolio.totalCost) * 100;
-                        } else {
-                          // For all periods, calculate change in gain percentage (normalized to 0% at start)
-                          // This shows only gain/loss movement, not capital additions
-                          const startGainPercent = startCostBasis > 0 ? ((startValue - startCostBasis) / startCostBasis) * 100 : 0;
-                          const endGainPercent = endCostBasis > 0 ? ((endValue - endCostBasis) / endCostBasis) * 100 : 0;
-                          rangePercentChange = endGainPercent - startGainPercent;
-                          // Show change in gain/loss amount from start (consistent with percentage)
-                          const startGainLoss = startValue - startCostBasis;
-                          const endGainLoss = endValue - endCostBasis;
-                          amountChange = endGainLoss - startGainLoss;
-                        }
-                        
-                        const isPositive = amountChange >= 0;
-                        
-                        return (
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-sm sm:text-base font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                              {isPositive ? '+' : ''}{formatCurrency(amountChange)}
-                            </span>
-                            <span className={`text-sm sm:text-base font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                              {isPositive ? '+' : ''}{rangePercentChange.toFixed(2)}%
-                            </span>
-                          </div>
-                        );
-                      })()}
+                      {/* Total Gain/Loss */}
+                      {activePortfolio && activePortfolio.totalCost > 0 && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-sm sm:text-base font-medium ${
+                            activePortfolio.totalGainLoss >= 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {activePortfolio.totalGainLoss >= 0 ? '+' : ''}
+                            {formatCurrency(activePortfolio.totalGainLoss)}
+                          </span>
+                          <span className={`text-sm sm:text-base font-medium ${
+                            activePortfolio.totalGainLoss >= 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            ({activePortfolio.totalGainLoss >= 0 ? '+' : ''}
+                            {activePortfolio.totalGainLossPercent.toFixed(2)}%)
+                          </span>
+                        </div>
+                      )}
                     </div>
                     {/* Period selector - hidden on mobile, shown on desktop */}
                     <div className="hidden sm:flex flex-wrap gap-1.5 sm:gap-2">

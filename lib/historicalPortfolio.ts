@@ -6,6 +6,11 @@ import { parseLocalDate } from './utils';
 /**
  * Calculate portfolio value over time based on actual transactions and historical prices
  * This properly accounts for when you bought/sold stocks
+ * 
+ * For each date, we calculate:
+ * 1. What holdings existed at that date (only transactions up to that date)
+ * 2. What the cost basis was at that date
+ * 3. What the portfolio value was at that date (using historical prices)
  */
 export async function calculateHistoricalPortfolioValue(
   transactions: Transaction[],
@@ -16,76 +21,125 @@ export async function calculateHistoricalPortfolioValue(
   }
 
   // Get all unique symbols from transactions
-  const symbols = Array.from(new Set(transactions.map(t => t.symbol)));
+  const symbols = Array.from(new Set(transactions.map(t => t.symbol).filter(s => s)));
   
   if (symbols.length === 0) {
     return [];
   }
 
-  // Convert period to days and range, and calculate target start date
+  // Determine the date range based on period
   let days = 30;
   let range = '1mo';
   let targetStartDate: Date | null = null;
+  const today = new Date();
   
   switch (period) {
     case '1d':
       days = 1;
       range = '1d';
-      targetStartDate = new Date();
+      // For 1d, we want yesterday's close to today
+      targetStartDate = new Date(today);
       targetStartDate.setDate(targetStartDate.getDate() - 1);
       break;
     case '5d':
       days = 5;
       range = '5d';
-      targetStartDate = new Date();
+      targetStartDate = new Date(today);
       targetStartDate.setDate(targetStartDate.getDate() - 5);
       break;
     case '1m':
       days = 30;
       range = '1mo';
-      targetStartDate = new Date();
+      targetStartDate = new Date(today);
       targetStartDate.setMonth(targetStartDate.getMonth() - 1);
       break;
     case '6m':
       days = 180;
       range = '6mo';
-      targetStartDate = new Date();
+      targetStartDate = new Date(today);
       targetStartDate.setMonth(targetStartDate.getMonth() - 6);
       break;
     case 'ytd':
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-      days = Math.ceil((Date.now() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+      targetStartDate = new Date(today.getFullYear(), 0, 1);
+      days = Math.ceil((today.getTime() - targetStartDate.getTime()) / (1000 * 60 * 60 * 24));
       range = 'ytd';
-      targetStartDate = startOfYear;
       break;
     case 'all':
-      days = 365 * 5;
-      range = '5y';
-      // For 'all', we don't need a specific start date
+      // Find the earliest transaction date
+      const earliestTransaction = transactions
+        .filter(t => t.type !== 'dividend')
+        .sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime())[0];
+      
+      if (earliestTransaction) {
+        targetStartDate = parseLocalDate(earliestTransaction.date);
+        const daysSinceFirst = Math.ceil((today.getTime() - targetStartDate.getTime()) / (1000 * 60 * 60 * 24));
+        days = Math.min(daysSinceFirst, 365 * 5); // Cap at 5 years
+        range = days > 365 ? '5y' : days > 180 ? '1y' : '6mo';
+      } else {
+        return [];
+      }
       break;
   }
-  
-  // Format target start date as YYYY-MM-DD
-  const targetStartDateStr = targetStartDate 
-    ? `${targetStartDate.getFullYear()}-${String(targetStartDate.getMonth() + 1).padStart(2, '0')}-${String(targetStartDate.getDate()).padStart(2, '0')}`
-    : null;
 
-  // For 1d period, fetch intraday data (today's movement)
+  if (!targetStartDate) {
+    return [];
+  }
+
   const isIntraday = period === '1d';
   
-  // For 1d period, we also need yesterday's closing prices to show the full day's performance
+  // Fetch historical data for all symbols in parallel
+  const historicalDataPromises = symbols.map(symbol => 
+    getHistoricalData(symbol, days, range, isIntraday).catch(() => [])
+  );
+  
+  const allHistoricalData = await Promise.all(historicalDataPromises);
+  
+  // Create a map: date -> symbol -> price
+  const pricesByDate = new Map<string, Map<string, number>>();
+  
+  for (let i = 0; i < symbols.length; i++) {
+    const symbol = symbols[i];
+    const histData = allHistoricalData[i];
+    
+    for (const dataPoint of histData) {
+      const dateKey = dataPoint.date; // For intraday, includes time; for daily, just date
+      
+      if (!pricesByDate.has(dateKey)) {
+        pricesByDate.set(dateKey, new Map());
+      }
+      pricesByDate.get(dateKey)!.set(symbol, dataPoint.price);
+    }
+  }
+  
+  // Get all unique dates/times, sorted chronologically
+  const allDates = Array.from(pricesByDate.keys()).sort((a, b) => {
+    // Handle both date-only and date-time strings
+    if (a.includes(' ') && b.includes(' ')) {
+      const [aDate, aTime] = a.split(' ');
+      const [bDate, bTime] = b.split(' ');
+      if (aDate === bDate) {
+        return aTime.localeCompare(bTime);
+      }
+      return aDate.localeCompare(bDate);
+    }
+    return a.localeCompare(b);
+  });
+  
+  if (allDates.length === 0) {
+    return [];
+  }
+  
+  // For 1d period, add yesterday's close as first data point
   let yesterdayClosePrices: Record<string, number> = {};
   if (isIntraday) {
-    // Fetch yesterday's closing prices for all symbols
-    const yesterday = new Date();
+    const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
     
+    // Fetch yesterday's closing prices
     const yesterdayDataPromises = symbols.map(async (symbol) => {
       try {
-        // Fetch 2 days of data to get yesterday's close
         const histData = await getHistoricalData(symbol, 2, '2d', false);
-        // Find yesterday's data point
         const yesterdayData = histData.find(d => d.date === yesterdayStr);
         return { symbol, price: yesterdayData?.price || null };
       } catch {
@@ -101,100 +155,78 @@ export async function calculateHistoricalPortfolioValue(
     });
   }
   
-  // Fetch historical data for all symbols in parallel
-  const historicalDataPromises = symbols.map(symbol => 
-    getHistoricalData(symbol, days, range, isIntraday).catch(() => [])
-  );
-  
-  const allHistoricalData = await Promise.all(historicalDataPromises);
-  
-  // Create a map of symbol -> historical prices by date/time
-  const pricesByDate = new Map<string, Map<string, number>>();
-  
-  for (let i = 0; i < symbols.length; i++) {
-    const symbol = symbols[i];
-    const histData = allHistoricalData[i];
-    
-    for (const dataPoint of histData) {
-      if (!pricesByDate.has(dataPoint.date)) {
-        pricesByDate.set(dataPoint.date, new Map());
-      }
-      pricesByDate.get(dataPoint.date)!.set(symbol, dataPoint.price);
-    }
-  }
-  
-  // Get all unique dates/times from all historical data
-  const allDates = Array.from(pricesByDate.keys()).sort();
-  
-  if (allDates.length === 0) {
-    return [];
-  }
-  
-  // Calculate portfolio value for each date/time
+  // Calculate portfolio value for each date
   const portfolioHistory: HistoricalData[] = [];
   
   for (const dateTimeStr of allDates) {
+    // Extract date part (for daily data, dateTimeStr is just the date)
+    const dateStr = dateTimeStr.includes(' ') ? dateTimeStr.split(' ')[0] : dateTimeStr;
+    const targetDate = parseLocalDate(dateStr);
+    
+    // Get prices for this date
     const pricesAtDate = Object.fromEntries(pricesByDate.get(dateTimeStr) || []);
     
-    // For intraday, we only care about today's holdings (all current transactions)
-    // For daily, check if transactions occurred before this date
-    let hasTransactions = false;
-    if (isIntraday) {
-      // For intraday, include all current holdings (today's portfolio)
-      hasTransactions = transactions.some(t => t.type !== 'dividend');
-    } else {
-      // For daily, only include transactions up to this date
-      const dateStr = dateTimeStr.split(' ')[0]; // Extract date part if it includes time
-      hasTransactions = transactions.some(t => {
-        const tDate = parseLocalDate(t.date);
-        const targetDate = parseLocalDate(dateStr);
-        return tDate <= targetDate && t.type !== 'dividend';
-      });
+    // Only include transactions that occurred on or before this date
+    const transactionsUpToDate = transactions.filter(t => {
+      if (t.type === 'dividend') return false;
+      const tDate = parseLocalDate(t.date);
+      return tDate <= targetDate;
+    });
+    
+    // Skip if no transactions up to this date
+    if (transactionsUpToDate.length === 0) {
+      continue;
     }
     
-    if (!hasTransactions) continue;
+    // Calculate portfolio value and cost basis at this date
+    const portfolioValue = calculatePortfolioValueAtDate(transactionsUpToDate, targetDate, pricesAtDate);
+    const costBasis = calculateCostBasisAtDate(transactionsUpToDate, targetDate);
     
-    // Calculate portfolio value and cost basis
-    // For intraday, use today's date; for daily, parse the date from the string
-    const dateStr = isIntraday ? new Date().toISOString().split('T')[0] : dateTimeStr.split(' ')[0];
-    const targetDate = parseLocalDate(dateStr);
-    const portfolioValue = calculatePortfolioValueAtDate(transactions, targetDate, pricesAtDate);
-    const costBasis = calculateCostBasisAtDate(transactions, targetDate);
-    
+    // Only add if we have valid data
     if (portfolioValue > 0 && costBasis > 0) {
       portfolioHistory.push({
-        date: dateTimeStr, // Keep full datetime string for intraday
+        date: dateTimeStr,
         price: portfolioValue,
-        volume: costBasis,
+        volume: costBasis, // Store cost basis in volume field
       });
     }
   }
-
-  // For 1d period, add yesterday's closing portfolio value as the first data point
+  
+  // For 1d period, add yesterday's close as first data point
   if (isIntraday && Object.keys(yesterdayClosePrices).length > 0) {
-    // Calculate portfolio value at yesterday's close
-    const yesterday = new Date();
+    const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
     const yesterdayDate = parseLocalDate(yesterdayStr);
     
-    // Calculate portfolio value and cost basis at yesterday's close
-    const yesterdayPortfolioValue = calculatePortfolioValueAtDate(transactions, yesterdayDate, yesterdayClosePrices);
-    const yesterdayCostBasis = calculateCostBasisAtDate(transactions, yesterdayDate);
+    // Only include transactions up to yesterday
+    const transactionsUpToYesterday = transactions.filter(t => {
+      if (t.type === 'dividend') return false;
+      const tDate = parseLocalDate(t.date);
+      return tDate <= yesterdayDate;
+    });
     
-    if (yesterdayPortfolioValue > 0 && yesterdayCostBasis > 0) {
-      // Add yesterday's close as the first data point (use market close time: 4:00 PM ET)
-      portfolioHistory.unshift({
-        date: `${yesterdayStr} 16:00`, // Market close time
-        price: yesterdayPortfolioValue,
-        volume: yesterdayCostBasis,
-      });
+    if (transactionsUpToYesterday.length > 0) {
+      const yesterdayPortfolioValue = calculatePortfolioValueAtDate(
+        transactionsUpToYesterday,
+        yesterdayDate,
+        yesterdayClosePrices
+      );
+      const yesterdayCostBasis = calculateCostBasisAtDate(transactionsUpToYesterday, yesterdayDate);
+      
+      if (yesterdayPortfolioValue > 0 && yesterdayCostBasis > 0) {
+        // Insert at the beginning
+        portfolioHistory.unshift({
+          date: `${yesterdayStr} 16:00`, // Market close time
+          price: yesterdayPortfolioValue,
+          volume: yesterdayCostBasis,
+        });
+      }
     }
   }
   
-  // Sort by date (oldest first)
-  const sortedHistory = portfolioHistory.sort((a, b) => {
-    // For intraday, compare date-time strings properly
+  // Ensure data is sorted chronologically
+  portfolioHistory.sort((a, b) => {
     if (a.date.includes(' ') && b.date.includes(' ')) {
       const [aDate, aTime] = a.date.split(' ');
       const [bDate, bTime] = b.date.split(' ');
@@ -205,36 +237,46 @@ export async function calculateHistoricalPortfolioValue(
     }
     return parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime();
   });
-
-  // If we have a target start date and the first data point is after it (and not intraday),
-  // add a data point for the target start date using the first available price
-  if (targetStartDateStr && sortedHistory.length > 0 && !isIntraday) {
-    const firstDate = parseLocalDate(sortedHistory[0].date);
-    const targetDate = parseLocalDate(targetStartDateStr);
+  
+  // If the first data point is after the target start date (and not intraday),
+  // add a data point for the target start date using the first available prices
+  if (!isIntraday && portfolioHistory.length > 0 && targetStartDate) {
+    const firstDataPoint = portfolioHistory[0];
+    const firstDateStr = firstDataPoint.date.includes(' ') 
+      ? firstDataPoint.date.split(' ')[0] 
+      : firstDataPoint.date;
+    const firstDate = parseLocalDate(firstDateStr);
     
-    // If the first data point is after the target start date, add a point for the target date
-    if (firstDate > targetDate) {
-      // Use the first available trading day's prices for the target start date
-      // This represents the portfolio value as of the target date (even if market was closed)
-      const firstAvailableDate = sortedHistory[0].date;
-      const pricesAtFirstDate = Object.fromEntries(pricesByDate.get(firstAvailableDate) || []);
-      const targetDateObj = parseLocalDate(targetStartDateStr);
+    if (firstDate > targetStartDate) {
+      // Use prices from the first available trading day
+      const firstAvailablePrices = Object.fromEntries(pricesByDate.get(firstDataPoint.date) || []);
       
-      // Calculate portfolio value at target date using prices from first available trading day
-      // This gives us the portfolio value as of the target date
-      const portfolioValueAtTarget = calculatePortfolioValueAtDate(transactions, targetDateObj, pricesAtFirstDate);
-      const costBasisAtTarget = calculateCostBasisAtDate(transactions, targetDateObj);
+      // Only include transactions up to target start date
+      const transactionsUpToStart = transactions.filter(t => {
+        if (t.type === 'dividend') return false;
+        const tDate = parseLocalDate(t.date);
+        return tDate <= targetStartDate;
+      });
       
-      if (portfolioValueAtTarget > 0 && costBasisAtTarget > 0) {
-        sortedHistory.unshift({
-          date: targetStartDateStr,
-          price: portfolioValueAtTarget,
-          volume: costBasisAtTarget,
-        });
+      if (transactionsUpToStart.length > 0) {
+        const portfolioValueAtStart = calculatePortfolioValueAtDate(
+          transactionsUpToStart,
+          targetStartDate,
+          firstAvailablePrices
+        );
+        const costBasisAtStart = calculateCostBasisAtDate(transactionsUpToStart, targetStartDate);
+        
+        if (portfolioValueAtStart > 0 && costBasisAtStart > 0) {
+          const targetStartDateStr = `${targetStartDate.getFullYear()}-${String(targetStartDate.getMonth() + 1).padStart(2, '0')}-${String(targetStartDate.getDate()).padStart(2, '0')}`;
+          portfolioHistory.unshift({
+            date: targetStartDateStr,
+            price: portfolioValueAtStart,
+            volume: costBasisAtStart,
+          });
+        }
       }
     }
   }
-
-  return sortedHistory;
+  
+  return portfolioHistory;
 }
-

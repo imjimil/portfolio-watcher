@@ -73,8 +73,10 @@ export async function calculateHistoricalPortfolioValue(
       if (earliestTransaction) {
         targetStartDate = parseLocalDate(earliestTransaction.date);
         const daysSinceFirst = Math.ceil((today.getTime() - targetStartDate.getTime()) / (1000 * 60 * 60 * 24));
-        days = Math.min(daysSinceFirst, 365 * 5); // Cap at 5 years
-        range = days > 365 ? '5y' : days > 180 ? '1y' : '6mo';
+        // For "all", use maximum available range (5y is typically the max Yahoo Finance provides)
+        // Use actual days to ensure we get enough data points
+        days = Math.min(daysSinceFirst, 365 * 10); // Cap at 10 years for safety, but request max range
+        range = '5y'; // Always use max range for "all" period
       } else {
         return [];
       }
@@ -88,11 +90,22 @@ export async function calculateHistoricalPortfolioValue(
   const isIntraday = period === '1d';
   
   // Fetch historical data for all symbols in parallel
+  // For "all" period, ensure we request maximum available data
   const historicalDataPromises = symbols.map(symbol => 
-    getHistoricalData(symbol, days, range, isIntraday).catch(() => [])
+    getHistoricalData(symbol, days, range, isIntraday).catch((error) => {
+      console.error(`Error fetching historical data for ${symbol}:`, error);
+      return [];
+    })
   );
   
   const allHistoricalData = await Promise.all(historicalDataPromises);
+  
+  // Check if we got any data at all
+  const hasAnyData = allHistoricalData.some(data => data.length > 0);
+  if (!hasAnyData) {
+    console.warn('No historical data received for any symbols');
+    return [];
+  }
   
   // Create a map: date -> symbol -> price
   const pricesByDate = new Map<string, Map<string, number>>();
@@ -183,7 +196,8 @@ export async function calculateHistoricalPortfolioValue(
     const costBasis = calculateCostBasisAtDate(transactionsUpToDate, targetDate);
     
     // Only add if we have valid data
-    if (portfolioValue > 0 && costBasis > 0) {
+    // For "all" period, be more lenient - allow portfolio value even if some symbols don't have prices
+    if (portfolioValue >= 0 && costBasis > 0) {
       portfolioHistory.push({
         date: dateTimeStr,
         price: portfolioValue,
@@ -266,7 +280,7 @@ export async function calculateHistoricalPortfolioValue(
         );
         const costBasisAtStart = calculateCostBasisAtDate(transactionsUpToStart, targetStartDate);
         
-        if (portfolioValueAtStart > 0 && costBasisAtStart > 0) {
+        if (portfolioValueAtStart >= 0 && costBasisAtStart > 0) {
           const targetStartDateStr = `${targetStartDate.getFullYear()}-${String(targetStartDate.getMonth() + 1).padStart(2, '0')}-${String(targetStartDate.getDate()).padStart(2, '0')}`;
           portfolioHistory.unshift({
             date: targetStartDateStr,
@@ -274,6 +288,34 @@ export async function calculateHistoricalPortfolioValue(
             volume: costBasisAtStart,
           });
         }
+      }
+    }
+  }
+  
+  // If we still have no data, try to add at least one data point using current/latest prices
+  if (portfolioHistory.length === 0 && transactions.length > 0 && allDates.length > 0) {
+    // Use the most recent date we have prices for
+    const mostRecentDate = allDates[allDates.length - 1];
+    const dateStr = mostRecentDate.includes(' ') ? mostRecentDate.split(' ')[0] : mostRecentDate;
+    const targetDate = parseLocalDate(dateStr);
+    const pricesAtDate = Object.fromEntries(pricesByDate.get(mostRecentDate) || []);
+    
+    const transactionsUpToDate = transactions.filter(t => {
+      if (t.type === 'dividend') return false;
+      const tDate = parseLocalDate(t.date);
+      return tDate <= targetDate;
+    });
+    
+    if (transactionsUpToDate.length > 0) {
+      const portfolioValue = calculatePortfolioValueAtDate(transactionsUpToDate, targetDate, pricesAtDate);
+      const costBasis = calculateCostBasisAtDate(transactionsUpToDate, targetDate);
+      
+      if (portfolioValue >= 0 && costBasis > 0) {
+        portfolioHistory.push({
+          date: mostRecentDate,
+          price: portfolioValue,
+          volume: costBasis,
+        });
       }
     }
   }

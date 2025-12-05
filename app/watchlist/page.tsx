@@ -11,7 +11,7 @@ import { WatchlistItem, Alert, Portfolio } from '@/types';
 import { getStockPriceData, searchStocks, getHistoricalData } from '@/lib/stockService';
 import { getWatchlist, saveWatchlist, getAlerts, saveAlerts, getPortfolios } from '@/lib/storage';
 import { formatCurrency, formatPercent, getColorForValue, cn } from '@/lib/utils';
-import { LineChart, Line, Area, ResponsiveContainer, XAxis, YAxis, ReferenceLine } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, ReferenceLine } from 'recharts';
 import AlertModal from '@/components/AlertModal';
 import TargetPriceModal from '@/components/TargetPriceModal';
 
@@ -153,18 +153,18 @@ export default function WatchlistPage() {
     
     for (const item of items) {
       try {
+        // Fetch intraday data for today
         const histData = await getHistoricalData(item.symbol, 1, '1d', true);
         
+        // Calculate previous close from current price and change percent
+        // This is the most reliable way since we know the day's change
         let previousClose = item.currentPrice;
-        try {
-          const dailyData = await getHistoricalData(item.symbol, 1, '1d', false);
-          if (dailyData.length > 0) {
-            previousClose = dailyData[dailyData.length - 1].price;
-          }
-        } catch (error) {
-          if (item.changePercent !== undefined) {
-            previousClose = item.currentPrice / (1 + item.changePercent / 100);
-          }
+        if (item.changePercent !== undefined && item.changePercent !== 0) {
+          // previousClose = currentPrice / (1 + changePercent/100)
+          previousClose = item.currentPrice / (1 + item.changePercent / 100);
+        } else if (histData.length > 0) {
+          // Fallback: use first intraday price (market open) as approximation
+          previousClose = histData[0].price;
         }
         
         if (histData.length > 0) {
@@ -540,8 +540,20 @@ export default function WatchlistPage() {
 
   // Mini Sparkline Component
   const MiniSparkline = ({ symbol, data, currentPrice, changePercent }: { symbol: string; data: { intraday: any[]; previousClose: number } | any[]; currentPrice: number; changePercent: number }) => {
-    const intradayData = Array.isArray(data) ? data : (data?.intraday || []);
-    const previousClose = Array.isArray(data) ? (data[0]?.price || currentPrice) : (data?.previousClose || currentPrice);
+    const rawIntradayData = Array.isArray(data) ? data : (data?.intraday || []);
+    
+    // Data comes in most-recent-first, but we need oldest-first for chart to show progression
+    const intradayData = [...rawIntradayData].reverse();
+    
+    // Calculate previous close from change percent (most reliable)
+    let previousClose: number;
+    if (!Array.isArray(data) && data?.previousClose) {
+      previousClose = data.previousClose;
+    } else if (changePercent !== undefined && changePercent !== 0) {
+      previousClose = currentPrice / (1 + changePercent / 100);
+    } else {
+      previousClose = currentPrice;
+    }
     
     if (!intradayData || intradayData.length === 0) return null;
     
@@ -550,95 +562,112 @@ export default function WatchlistPage() {
       value: d.price,
     }));
     
-    const isPositive = currentPrice >= previousClose;
+    // Determine color based on change percent (most reliable)
+    const isPositive = changePercent >= 0;
+    const lineColor = isPositive ? '#10b981' : '#ef4444';
     
-    const min = Math.min(...chartData.map(d => d.value), previousClose, currentPrice);
-    const max = Math.max(...chartData.map(d => d.value), previousClose, currentPrice);
+    const min = Math.min(...chartData.map(d => d.value), previousClose);
+    const max = Math.max(...chartData.map(d => d.value), previousClose);
     const range = max - min || 1;
-    const rangePercent = range > 0 ? ((previousClose - min) / range) * 100 : 50;
     
     return (
-      <ResponsiveContainer width="100%" height={40}>
-        <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
-          <defs>
-            <linearGradient id={`gradient-${symbol}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
-              <stop offset={`${Math.max(0, Math.min(100, rangePercent - 1))}%`} stopColor="#10b981" stopOpacity={0.2} />
-              <stop offset={`${Math.max(0, Math.min(100, rangePercent))}%`} stopColor="#6b7280" stopOpacity={0.1} />
-              <stop offset={`${Math.max(0, Math.min(100, rangePercent + 1))}%`} stopColor="#ef4444" stopOpacity={0.2} />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.2} />
-            </linearGradient>
-          </defs>
-          <Area
-            type="monotone"
-            dataKey="value"
-            fill={`url(#gradient-${symbol})`}
-            stroke="none"
-          />
+      <ResponsiveContainer width="100%" height={28}>
+        <LineChart data={chartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
           <ReferenceLine 
             y={previousClose} 
-            stroke="#6b7280" 
-            strokeWidth={1.5} 
-            strokeDasharray="3 3"
+            stroke="#9ca3af" 
+            strokeWidth={1} 
+            strokeDasharray="2 2"
           />
           <Line 
             type="monotone" 
             dataKey="value" 
-            stroke={isPositive ? '#10b981' : '#ef4444'}
-            strokeWidth={2}
+            stroke={lineColor}
+            strokeWidth={1.5}
             dot={false}
             isAnimationActive={false}
           />
           <XAxis dataKey="index" hide />
-          <YAxis domain={[min - range * 0.1, max + range * 0.1]} hide />
+          <YAxis domain={[min - range * 0.05, max + range * 0.05]} hide />
         </LineChart>
       </ResponsiveContainer>
     );
   };
 
-  // Statistics Cards
+  // Statistics Cards - Modern compact style
   const StatsCards = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Total Items</div>
-        <div className="text-lg font-semibold">{stats.totalItems}</div>
-      </div>
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Avg Change</div>
-        <div className={cn('text-lg font-semibold', getColorForValue(stats.avgChange))}>
-          {formatPercent(stats.avgChange)}
+    <div className="mb-4 md:mb-6">
+      {/* Mobile: Horizontal scroll */}
+      <div className="flex md:hidden gap-2 overflow-x-auto pb-2 -mx-3 px-3 scrollbar-hide">
+        <div className="flex-shrink-0 bg-white dark:bg-gray-800/50 rounded-xl px-4 py-3 min-w-[100px]">
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">Watching</div>
+          <div className="text-xl font-bold text-gray-900 dark:text-white mt-0.5">{stats.totalItems}</div>
         </div>
-      </div>
-      {stats.topGainer && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Top Gainer</div>
-          <div className="text-sm font-medium">{stats.topGainer.symbol}</div>
-          <div className={cn('text-xs', getColorForValue(stats.topGainer.changePercent))}>
-            {formatPercent(stats.topGainer.changePercent)}
+        <div className="flex-shrink-0 bg-white dark:bg-gray-800/50 rounded-xl px-4 py-3 min-w-[100px]">
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">Avg Change</div>
+          <div className={cn('text-xl font-bold mt-0.5', stats.avgChange >= 0 ? 'text-emerald-600' : 'text-red-500')}>
+            {stats.avgChange >= 0 ? '+' : ''}{stats.avgChange.toFixed(2)}%
           </div>
         </div>
-      )}
-      {stats.topLoser && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Top Loser</div>
-          <div className="text-sm font-medium">{stats.topLoser.symbol}</div>
-          <div className={cn('text-xs', getColorForValue(stats.topLoser.changePercent))}>
-            {formatPercent(stats.topLoser.changePercent)}
+        {stats.topGainer && (
+          <div className="flex-shrink-0 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl px-4 py-3 min-w-[110px]">
+            <div className="text-[11px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Top Gainer</div>
+            <div className="text-base font-bold text-gray-900 dark:text-white mt-0.5">{stats.topGainer.symbol}</div>
+            <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              +{stats.topGainer.changePercent.toFixed(2)}%
+            </div>
+          </div>
+        )}
+        {stats.topLoser && stats.topLoser.changePercent < 0 && (
+          <div className="flex-shrink-0 bg-red-50 dark:bg-red-900/20 rounded-xl px-4 py-3 min-w-[110px]">
+            <div className="text-[11px] text-red-500 dark:text-red-400 uppercase tracking-wide">Top Loser</div>
+            <div className="text-base font-bold text-gray-900 dark:text-white mt-0.5">{stats.topLoser.symbol}</div>
+            <div className="text-sm font-semibold text-red-500 dark:text-red-400">
+              {stats.topLoser.changePercent.toFixed(2)}%
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Desktop: Grid */}
+      <div className="hidden md:grid md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+          <div className="text-xs text-gray-500 dark:text-gray-400">Watching</div>
+          <div className="text-2xl font-bold mt-1">{stats.totalItems}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+          <div className="text-xs text-gray-500 dark:text-gray-400">Avg Change</div>
+          <div className={cn('text-2xl font-bold mt-1', stats.avgChange >= 0 ? 'text-emerald-600' : 'text-red-500')}>
+            {stats.avgChange >= 0 ? '+' : ''}{stats.avgChange.toFixed(2)}%
           </div>
         </div>
-      )}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Alerts</div>
-        <div className="text-lg font-semibold">{stats.itemsWithAlerts}</div>
-      </div>
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-500 dark:text-gray-400">Near Target</div>
-        <div className="text-lg font-semibold">{stats.itemsNearTarget}</div>
+        {stats.topGainer && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Top Gainer</div>
+            <div className="text-lg font-bold mt-1">{stats.topGainer.symbol}</div>
+            <div className="text-sm font-semibold text-emerald-600">+{stats.topGainer.changePercent.toFixed(2)}%</div>
+          </div>
+        )}
+        {stats.topLoser && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Top Loser</div>
+            <div className="text-lg font-bold mt-1">{stats.topLoser.symbol}</div>
+            <div className="text-sm font-semibold text-red-500">{stats.topLoser.changePercent.toFixed(2)}%</div>
+          </div>
+        )}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+          <div className="text-xs text-gray-500 dark:text-gray-400">Active Alerts</div>
+          <div className="text-2xl font-bold mt-1">{stats.itemsWithAlerts}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+          <div className="text-xs text-gray-500 dark:text-gray-400">Near Target</div>
+          <div className="text-2xl font-bold mt-1">{stats.itemsNearTarget}</div>
+        </div>
       </div>
     </div>
   );
 
-  // Watchlist Item Card
+  // Watchlist Item Card - Modern Fintech Style
   const WatchlistItemCard = ({ item }: { item: WatchlistItem }) => {
     const itemAlerts = getItemAlerts(item.symbol);
     const isSelected = selectedItems.has(item.symbol);
@@ -661,13 +690,13 @@ export default function WatchlistPage() {
     const handleTouchMove = (e: React.TouchEvent) => {
       if (touchStartRef.current === null) return;
       const diff = e.touches[0].clientX - touchStartRef.current;
-      const maxSwipe = 100;
+      const maxSwipe = 80;
       setSwipeOffset(Math.max(-maxSwipe, Math.min(maxSwipe, diff)));
     };
 
     const handleTouchEnd = () => {
       if (touchStartRef.current === null) return;
-      const threshold = 50;
+      const threshold = 40;
       
       if (swipeOffset < -threshold) {
         handleRemove(item.symbol);
@@ -681,94 +710,62 @@ export default function WatchlistPage() {
     };
 
     return (
-      <div className="relative overflow-visible h-full">
+      <div className="relative overflow-hidden">
+        {/* Swipe actions - Mobile only */}
         <div className={cn(
-          'absolute right-0 top-0 bottom-0 w-20 bg-red-600 flex items-center justify-center text-white font-semibold rounded-r-lg transition-opacity duration-200 z-0 pointer-events-none',
-          swipeOffset < -20 ? 'opacity-100' : 'opacity-0'
+          'absolute right-0 top-0 bottom-0 w-16 bg-red-500 flex items-center justify-center transition-opacity duration-150 md:hidden',
+          swipeOffset < -15 ? 'opacity-100' : 'opacity-0'
         )}>
-          Remove
+          <Trash2 className="h-5 w-5 text-white" />
         </div>
         <div className={cn(
-          'absolute left-0 top-0 bottom-0 w-20 bg-gray-500 flex items-center justify-center text-white font-semibold rounded-l-lg transition-opacity duration-200 z-0 pointer-events-none',
-          swipeOffset > 20 ? 'opacity-100' : 'opacity-0'
+          'absolute left-0 top-0 bottom-0 w-16 bg-blue-500 flex items-center justify-center transition-opacity duration-150 md:hidden',
+          swipeOffset > 15 ? 'opacity-100' : 'opacity-0'
         )}>
-          Compare
+          <Bell className="h-5 w-5 text-white" />
         </div>
 
-        <div className={cn(
-          'bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md relative z-10',
-          isSelected && 'ring-2 ring-blue-500 border-blue-500',
-          isComparing && 'ring-2 ring-green-500 border-green-500'
-        )}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        style={{
-          transform: `translateX(${swipeOffset}px)`,
-          transition: isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        }}>
-          <div className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              {selectedItems.size > 0 && (
-                <button
-                  onClick={() => toggleSelect(item.symbol)}
-                  className="flex-shrink-0 transition-opacity hover:opacity-70"
-                >
-                  {isSelected ? (
-                    <CheckSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  ) : (
-                    <Square className="h-4 w-4 text-gray-400" />
+        <div 
+          className={cn(
+            'bg-white dark:bg-gray-800/50 relative transition-all duration-150',
+            // Mobile: clean list item style
+            'md:rounded-xl md:border md:border-gray-100 md:dark:border-gray-700/50 md:shadow-sm md:hover:shadow-md',
+            isSelected && 'bg-blue-50 dark:bg-blue-900/20',
+            isComparing && 'bg-green-50 dark:bg-green-900/20'
+          )}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            transform: `translateX(${swipeOffset}px)`,
+            transition: isSwiping ? 'none' : 'transform 0.2s ease-out'
+          }}
+        >
+          {/* Mobile Layout - Clean list style like Robinhood */}
+          <div className="md:hidden">
+            <div className="flex items-center px-4 py-3.5 active:bg-gray-50 dark:active:bg-gray-700/30">
+              {/* Left: Symbol & Name */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-[15px] text-gray-900 dark:text-white tracking-tight">
+                    {item.symbol}
+                  </span>
+                  {itemAlerts.length > 0 && (
+                    <Bell className="h-3 w-3 text-amber-500 fill-amber-500" />
                   )}
-                </button>
-              )}
-              
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <h3 className="font-bold text-base text-gray-900 dark:text-gray-100">{item.symbol}</h3>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleSetAlert(item.symbol)}
-                    className="md:pointer-events-none relative group"
-                    title={itemAlerts.length > 0 ? `Alert: ${itemAlerts.map(a => {
-                      if (a.type === 'price_above') return `Above ${formatCurrency(a.value)}`;
-                      if (a.type === 'price_below') return `Below ${formatCurrency(a.value)}`;
-                      return `Change ${a.value >= 0 ? '+' : ''}${formatPercent(a.value)}`;
-                    }).join(', ')}` : 'Set Alert'}
-                  >
-                    {itemAlerts.length > 0 ? (
-                      <>
-                        <Bell className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500 dark:text-yellow-400 dark:fill-yellow-400" />
-                        <div className="hidden md:block absolute left-0 top-full mt-1 p-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none z-50 whitespace-nowrap transition-opacity">
-                          {itemAlerts.map(a => {
-                            if (a.type === 'price_above') return `Alert: Above ${formatCurrency(a.value)}`;
-                            if (a.type === 'price_below') return `Alert: Below ${formatCurrency(a.value)}`;
-                            return `Alert: Change ${a.value >= 0 ? '+' : ''}${formatPercent(a.value)}`;
-                          }).join(', ')}
-                        </div>
-                      </>
-                    ) : (
-                      <Bell className="h-3.5 w-3.5 text-gray-400 opacity-50 md:opacity-0" />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleSetTarget(item.symbol)}
-                    className="md:pointer-events-none"
-                  >
-                    <Target className={cn(
-                      'h-3.5 w-3.5',
-                      hasTarget 
-                        ? (targetProgress && targetProgress >= 95 ? 'text-green-500 dark:text-green-400' : 'text-blue-500 dark:text-blue-400')
-                        : 'text-gray-400 opacity-50 md:opacity-0'
-                    )} />
-                  </button>
                   {isInPortfolio(item.symbol) && (
-                    <span className="text-[9px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-1 py-0.5 rounded font-medium">
-                      P
+                    <span className="text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">
+                      Owned
                     </span>
                   )}
                 </div>
+                <p className="text-[13px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                  {item.name}
+                </p>
               </div>
 
-              <div className="flex-1 min-w-0 h-10">
+              {/* Center: Sparkline */}
+              <div className="w-20 h-8 mx-3">
                 {sparkline && (Array.isArray(sparkline) ? sparkline.length > 0 : sparkline.intraday?.length > 0) ? (
                   <MiniSparkline 
                     symbol={item.symbol} 
@@ -777,48 +774,133 @@ export default function WatchlistPage() {
                     changePercent={item.changePercent}
                   />
                 ) : (
-                  <div className="h-full bg-gray-50 dark:bg-gray-900/50 rounded flex items-center justify-center">
-                    <span className="text-[10px] text-gray-400">Loading...</span>
+                  <div className="h-full flex items-center justify-center">
+                    <div className="w-full h-[1px] bg-gray-200 dark:bg-gray-700" />
                   </div>
                 )}
               </div>
 
-              <div className="text-right flex-shrink-0">
-                <div className="text-base font-bold text-gray-900 dark:text-gray-100">
+              {/* Right: Price & Change */}
+              <div className="text-right min-w-[80px]">
+                <div className="font-semibold text-[15px] text-gray-900 dark:text-white tabular-nums">
                   {formatCurrency(item.currentPrice)}
                 </div>
                 <div className={cn(
-                  'text-xs font-semibold flex items-center justify-end gap-0.5',
-                  getColorForValue(item.changePercent)
+                  'text-[13px] font-medium tabular-nums',
+                  item.changePercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
                 )}>
-                  {item.changePercent >= 0 ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3" />
-                  )}
-                  {formatPercent(item.changePercent)}
+                  {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
                 </div>
               </div>
             </div>
 
-            <p className="hidden md:block text-xs text-gray-600 dark:text-gray-400 truncate mb-3">{item.name}</p>
-
+            {/* Target progress - only if set */}
             {hasTarget && (
-              <div className="mb-3">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-gray-600 dark:text-gray-400">Target</span>
+              <div className="px-4 pb-3">
+                <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-1">
+                  <span>Target: {formatCurrency(item.targetPrice!)}</span>
                   <span className={cn(
-                    'font-semibold',
-                    targetProgress && targetProgress >= 95 ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'
+                    'font-medium',
+                    targetProgress && targetProgress >= 95 ? 'text-emerald-600' : ''
                   )}>
-                    {targetProgress ? `${targetProgress.toFixed(0)}%` : 'N/A'}
+                    {targetProgress?.toFixed(0)}%
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                  <div
+                <div className="h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
                     className={cn(
-                      'h-full rounded-full transition-all duration-300',
-                      targetProgress && targetProgress >= 95 ? 'bg-green-500' : 'bg-blue-500'
+                      'h-full rounded-full transition-all',
+                      targetProgress && targetProgress >= 95 ? 'bg-emerald-500' : 'bg-blue-500'
+                    )}
+                    style={{ width: `${Math.min(100, targetProgress || 0)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Layout - Card style with actions */}
+          <div className="hidden md:block p-4">
+            <div className="flex items-center gap-4">
+              {selectedItems.size > 0 && (
+                <button onClick={() => toggleSelect(item.symbol)} className="flex-shrink-0">
+                  {isSelected ? (
+                    <CheckSquare className="h-4 w-4 text-blue-600" />
+                  ) : (
+                    <Square className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              )}
+              
+              {/* Symbol & Name */}
+              <div className="min-w-[120px]">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-base text-gray-900 dark:text-gray-100">{item.symbol}</h3>
+                  {itemAlerts.length > 0 && (
+                    <Bell className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                  )}
+                  {hasTarget && (
+                    <Target className={cn(
+                      'h-3.5 w-3.5',
+                      targetProgress && targetProgress >= 95 ? 'text-emerald-500' : 'text-blue-500'
+                    )} />
+                  )}
+                  {isInPortfolio(item.symbol) && (
+                    <span className="text-[9px] font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">
+                      Owned
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.name}</p>
+              </div>
+
+              {/* Sparkline */}
+              <div className="flex-1 h-10">
+                {sparkline && (Array.isArray(sparkline) ? sparkline.length > 0 : sparkline.intraday?.length > 0) ? (
+                  <MiniSparkline 
+                    symbol={item.symbol} 
+                    data={sparkline} 
+                    currentPrice={item.currentPrice}
+                    changePercent={item.changePercent}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="w-full h-[1px] bg-gray-200 dark:bg-gray-700" />
+                  </div>
+                )}
+              </div>
+
+              {/* Price & Change */}
+              <div className="text-right min-w-[100px]">
+                <div className="text-base font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                  {formatCurrency(item.currentPrice)}
+                </div>
+                <div className={cn(
+                  'text-sm font-medium tabular-nums',
+                  item.changePercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
+                )}>
+                  {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+
+            {/* Target progress bar - Desktop */}
+            {hasTarget && (
+              <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                  <span>Target: {formatCurrency(item.targetPrice!)}</span>
+                  <span className={cn(
+                    'font-medium',
+                    targetProgress && targetProgress >= 95 ? 'text-emerald-600' : ''
+                  )}>
+                    {targetProgress?.toFixed(0)}% reached
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      'h-full rounded-full',
+                      targetProgress && targetProgress >= 95 ? 'bg-emerald-500' : 'bg-blue-500'
                     )}
                     style={{ width: `${Math.min(100, targetProgress || 0)}%` }}
                   />
@@ -826,34 +908,35 @@ export default function WatchlistPage() {
               </div>
             )}
 
-            <div className="hidden md:flex items-center gap-1.5 pt-2 border-t border-gray-100 dark:border-gray-700">
+            {/* Action buttons - Desktop */}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
               <button
                 onClick={() => handleSetAlert(item.symbol)}
-                className="flex-1 text-[10px] font-medium px-2 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 rounded-md hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors"
+                className="flex-1 text-xs font-medium py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
               >
                 Alert
               </button>
               <button
                 onClick={() => handleSetTarget(item.symbol)}
-                className="flex-1 text-[10px] font-medium px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                className="flex-1 text-xs font-medium py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
               >
                 Target
               </button>
               <button
                 onClick={() => toggleCompare(item.symbol)}
                 className={cn(
-                  'flex-1 text-[10px] font-medium px-2 py-1.5 rounded-md transition-colors',
+                  'flex-1 text-xs font-medium py-2 rounded-lg transition-colors',
                   isComparing 
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30'
-                    : 'bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 hover:bg-gray-100'
                 )}
                 disabled={!isComparing && comparingItems.size >= 4}
               >
-                Compare
+                {isComparing ? 'Comparing' : 'Compare'}
               </button>
               <button
                 onClick={() => handleRemove(item.symbol)}
-                className="flex-1 text-[10px] font-medium px-2 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                className="flex-1 text-xs font-medium py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
               >
                 Remove
               </button>
@@ -1072,17 +1155,38 @@ export default function WatchlistPage() {
           </div>
 
           {filteredAndSorted.length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <p className="text-gray-500 dark:text-gray-400">
-                {filterType !== 'all' ? 'No items match the current filter.' : 'No stocks in watchlist. Add some to track them!'}
+            <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+              <div className="text-gray-400 dark:text-gray-500 mb-2">
+                <TrendingUp className="h-12 w-12 mx-auto opacity-50" />
+              </div>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                {filterType !== 'all' ? 'No items match the current filter.' : 'No stocks in watchlist yet'}
               </p>
+              {filterType === 'all' && (
+                <button 
+                  onClick={() => setIsAdding(true)}
+                  className="mt-4 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Add your first stock
+                </button>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-visible">
-              {filteredAndSorted.map((item) => (
-                <WatchlistItemCard key={item.symbol} item={item} />
-              ))}
-            </div>
+            <>
+              {/* Mobile: Clean list with dividers */}
+              <div className="md:hidden bg-white dark:bg-gray-800 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/50">
+                {filteredAndSorted.map((item) => (
+                  <WatchlistItemCard key={item.symbol} item={item} />
+                ))}
+              </div>
+              
+              {/* Desktop: Card grid */}
+              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredAndSorted.map((item) => (
+                  <WatchlistItemCard key={item.symbol} item={item} />
+                ))}
+              </div>
+            </>
           )}
 
           {showAlertModal && (

@@ -8,10 +8,52 @@ const requestCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 60000; // 1 minute cache for quote data
 const SEARCH_CACHE_DURATION = 300000; // 5 minutes cache for search results
 
+// Track last cache clear date to auto-clear stale data from previous days
+let lastCacheClearDate: string | null = null;
+
+/**
+ * Get today's date string in ET timezone (market timezone)
+ */
+function getTodayET(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
+/**
+ * Clear stale cache from previous days
+ * This ensures fresh data on the first load of each trading day
+ */
+export function clearStaleCacheIfNeeded(): boolean {
+  const todayET = getTodayET();
+  if (lastCacheClearDate !== todayET) {
+    requestCache.clear();
+    lastCacheClearDate = todayET;
+    return true; // Cache was cleared
+  }
+  return false; // Cache is still valid for today
+}
+
+/**
+ * Clear all cached data - for manual refresh
+ */
+export function clearStockCache(): void {
+  requestCache.clear();
+}
+
+/**
+ * Check if cache has fresh data (< cache duration)
+ */
+export function hasFreshCache(cacheKey: string, cacheDuration: number = CACHE_DURATION): boolean {
+  const cached = requestCache.get(cacheKey);
+  return !!(cached && Date.now() - cached.timestamp < cacheDuration);
+}
+
 /**
  * Make a cached API request through Next.js API routes
  */
 async function cachedFetch(endpoint: string, cacheKey: string, cacheDuration: number = CACHE_DURATION): Promise<any> {
+  // Auto-clear stale cache from previous days
+  clearStaleCacheIfNeeded();
+  
   // Check cache first
   const cached = requestCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < cacheDuration) {

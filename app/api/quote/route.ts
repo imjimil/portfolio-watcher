@@ -12,14 +12,23 @@ export async function GET(request: NextRequest) {
 
   try {
     const url = `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=2d`;
-    const response = await fetch(url);
+    // Use short revalidation for fresh data during market hours
+    const response = await fetch(url, { 
+      next: { revalidate: 30 } // Cache for 30 seconds server-side
+    });
     
     if (!response.ok) {
       throw new Error(`Yahoo Finance API error: ${response.status}`);
     }
     
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Allow short client-side caching (30s) for better performance
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+      }
+    });
   } catch (error) {
     console.error('Error fetching quote:', error);
     return NextResponse.json(

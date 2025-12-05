@@ -38,14 +38,30 @@ export async function GET(request: NextRequest) {
     
     const url = `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${symbol.toUpperCase()}?interval=${finalInterval}&range=${finalRange}`;
     
-    const response = await fetch(url);
+    // Intraday data needs shorter cache, daily data can be cached longer
+    const isIntraday = finalInterval !== '1d';
+    const revalidateTime = isIntraday ? 30 : 300; // 30s for intraday, 5min for daily
+    
+    const response = await fetch(url, {
+      next: { revalidate: revalidateTime }
+    });
     
     if (!response.ok) {
       throw new Error(`Yahoo Finance API error: ${response.status}`);
     }
     
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Cache headers based on data type
+    const cacheControl = isIntraday 
+      ? 'public, s-maxage=30, stale-while-revalidate=60'
+      : 'public, s-maxage=300, stale-while-revalidate=600';
+    
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': cacheControl
+      }
+    });
   } catch (error) {
     console.error('Error fetching historical data:', error);
     return NextResponse.json(

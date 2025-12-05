@@ -8,7 +8,7 @@ import {
   Trash2, CheckSquare, Square
 } from 'lucide-react';
 import { WatchlistItem, Alert, Portfolio } from '@/types';
-import { getStockPriceData, searchStocks, getHistoricalData } from '@/lib/stockService';
+import { getStockPriceData, searchStocks, getHistoricalData, clearStaleCacheIfNeeded } from '@/lib/stockService';
 import { getWatchlist, saveWatchlist, getAlerts, saveAlerts, getPortfolios } from '@/lib/storage';
 import { formatCurrency, formatPercent, getColorForValue, cn } from '@/lib/utils';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, ReferenceLine } from 'recharts';
@@ -187,8 +187,14 @@ export default function WatchlistPage() {
     setSparklineData(prev => ({ ...prev, ...data }));
   }, []);
 
+  // Track if we've done the initial price refresh this session
+  const hasRefreshedRef = useRef(false);
+
   const loadData = useCallback(async () => {
     try {
+      // Check if we need to clear stale cache (from previous day)
+      const cacheWasStale = clearStaleCacheIfNeeded();
+      
       const [loadedWatchlist, loadedAlerts, loadedPortfolios] = await Promise.all([
         getWatchlist(),
         getAlerts(),
@@ -199,7 +205,54 @@ export default function WatchlistPage() {
       setPortfolios(loadedPortfolios);
       
       if (loadedWatchlist.length > 0) {
-        loadSparklines(loadedWatchlist);
+        // Only fetch fresh prices if:
+        // 1. Cache was stale (from previous day), OR
+        // 2. First load of this session (prices in DB might be old)
+        const shouldRefresh = cacheWasStale || !hasRefreshedRef.current;
+        
+        if (shouldRefresh) {
+          hasRefreshedRef.current = true;
+          setRefreshing(true);
+          
+          try {
+            const updated = [...loadedWatchlist];
+            let hasChanges = false;
+            
+            for (const item of loadedWatchlist) {
+              try {
+                const stock = await getStockPriceData(item.symbol, item.name);
+                if (stock && stock.currentPrice > 0) {
+                  const index = updated.findIndex(w => w.symbol === item.symbol);
+                  if (index !== -1 && updated[index].currentPrice !== stock.currentPrice) {
+                    updated[index] = {
+                      ...updated[index],
+                      currentPrice: stock.currentPrice,
+                      change: stock.change,
+                      changePercent: stock.changePercent,
+                    };
+                    hasChanges = true;
+                  }
+                }
+              } catch (error) {
+                console.error(`Failed to refresh ${item.symbol}:`, error);
+              }
+              await new Promise(resolve => setTimeout(resolve, 150));
+            }
+            
+            if (hasChanges) {
+              setWatchlist(updated);
+              await saveWatchlist(updated);
+            }
+            
+            // Load sparklines with fresh data
+            loadSparklines(updated.length > 0 ? updated : loadedWatchlist);
+          } finally {
+            setRefreshing(false);
+          }
+        } else {
+          // Use cached/stored data, just load sparklines
+          loadSparklines(loadedWatchlist);
+        }
       }
     } catch (error) {
       console.error('Error loading watchlist data:', error);

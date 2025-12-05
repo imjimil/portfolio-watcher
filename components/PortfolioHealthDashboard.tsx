@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Holding } from '@/types';
 import { formatPercent, cn } from '@/lib/utils';
-import { AlertTriangle, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Shield, PieChart } from 'lucide-react';
 
 interface PortfolioHealthDashboardProps {
   holdings: Holding[];
@@ -22,8 +22,6 @@ export default function PortfolioHealthDashboard({ holdings, totalValue }: Portf
       };
     }
 
-    // Calculate diversification score (0-100)
-    // Based on: number of holdings, concentration, and distribution
     const numHoldings = holdings.length;
     const maxAllocation = Math.max(...holdings.map(h => h.allocation));
     const top3Allocation = holdings
@@ -31,26 +29,21 @@ export default function PortfolioHealthDashboard({ holdings, totalValue }: Portf
       .slice(0, 3)
       .reduce((sum, h) => sum + h.allocation, 0);
 
-    // Diversification score calculation
     let score = 0;
-    // More holdings = better (up to 20 holdings = 40 points)
     score += Math.min(40, (numHoldings / 20) * 40);
-    // Lower max allocation = better (max 30 points)
     score += Math.max(0, 30 - (maxAllocation * 0.3));
-    // Lower top 3 concentration = better (max 30 points)
     score += Math.max(0, 30 - (top3Allocation * 0.3));
 
-    // Concentration warnings
     const warnings: string[] = [];
     if (maxAllocation > 20) {
       const topHolding = holdings.find(h => h.allocation === maxAllocation);
-      warnings.push(`${topHolding?.symbol} represents ${formatPercent(maxAllocation, 1)} of portfolio (recommended: <20%)`);
+      warnings.push(`${topHolding?.symbol} is ${formatPercent(maxAllocation, 0)} of portfolio`);
     }
     if (top3Allocation > 50) {
-      warnings.push(`Top 3 holdings represent ${formatPercent(top3Allocation, 1)} of portfolio (recommended: <50%)`);
+      warnings.push(`Top 3 represent ${formatPercent(top3Allocation, 0)} of portfolio`);
     }
     if (numHoldings < 5) {
-      warnings.push(`Portfolio has only ${numHoldings} holdings (recommended: 10+ for better diversification)`);
+      warnings.push(`Only ${numHoldings} holdings - consider diversifying`);
     }
 
     const topHoldings = holdings
@@ -70,123 +63,153 @@ export default function PortfolioHealthDashboard({ holdings, totalValue }: Portf
   const { diversificationScore, concentrationWarnings, topHoldings, holdingsCount } = healthMetrics;
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 dark:text-green-400';
-    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (score >= 80) return 'text-emerald-600 dark:text-emerald-400';
+    if (score >= 60) return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-500 dark:text-red-400';
   };
 
-  const getScoreBg = (score: number) => {
-    if (score >= 80) return 'bg-green-100 dark:bg-green-900/30';
-    if (score >= 60) return 'bg-yellow-100 dark:bg-yellow-900/30';
-    return 'bg-red-100 dark:bg-red-900/30';
+  const getScoreGradient = (score: number) => {
+    if (score >= 80) return 'from-emerald-500 to-emerald-400';
+    if (score >= 60) return 'from-amber-500 to-amber-400';
+    return 'from-red-500 to-red-400';
+  };
+
+  const getScoreLabel = (score: number) => {
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Good';
+    return 'Needs Work';
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 mb-4">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Portfolio Health</h2>
-
-      {/* Diversification Score */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Diversification Score</span>
-          <span className={cn('text-2xl font-bold', getScoreColor(diversificationScore))}>
-            {diversificationScore}/100
-          </span>
+    <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4 sm:p-5 mb-4">
+      {/* Header Section */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20">
+            <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          </div>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Portfolio Health
+          </p>
         </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-          <div
-            className={cn('h-3 rounded-full transition-all', getScoreBg(diversificationScore))}
-            style={{ width: `${Math.min(100, diversificationScore)}%` }}
-          />
-        </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          {diversificationScore >= 80 ? 'Excellent diversification' :
-           diversificationScore >= 60 ? 'Good diversification' :
-           'Consider diversifying further'}
-        </p>
-      </div>
-
-      {/* Mobile: Expand/Collapse Button */}
-      <div className="sm:hidden mb-4">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center justify-between w-full p-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          className="sm:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
-          <span>{isExpanded ? 'Hide details' : 'Show details'}</span>
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          <ChevronDown className={cn(
+            'h-4 w-4 text-gray-500 transition-transform',
+            isExpanded && 'rotate-180'
+          )} />
         </button>
       </div>
 
-      {/* Details Section - Hidden on mobile unless expanded, always visible on desktop */}
+      {/* Score Display */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="relative w-16 h-16 flex-shrink-0">
+          <svg className="w-16 h-16 transform -rotate-90">
+            <circle
+              cx="32"
+              cy="32"
+              r="28"
+              stroke="currentColor"
+              strokeWidth="6"
+              fill="none"
+              className="text-gray-200 dark:text-gray-700"
+            />
+            <circle
+              cx="32"
+              cy="32"
+              r="28"
+              stroke="url(#scoreGradient)"
+              strokeWidth="6"
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={`${(diversificationScore / 100) * 175.9} 175.9`}
+            />
+            <defs>
+              <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" className={cn(
+                  diversificationScore >= 80 ? 'stop-emerald-500' : 
+                  diversificationScore >= 60 ? 'stop-amber-500' : 'stop-red-500'
+                )} stopColor={diversificationScore >= 80 ? '#10b981' : diversificationScore >= 60 ? '#f59e0b' : '#ef4444'} />
+                <stop offset="100%" className={cn(
+                  diversificationScore >= 80 ? 'stop-emerald-400' : 
+                  diversificationScore >= 60 ? 'stop-amber-400' : 'stop-red-400'
+                )} stopColor={diversificationScore >= 80 ? '#34d399' : diversificationScore >= 60 ? '#fbbf24' : '#f87171'} />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={cn('text-lg font-bold tabular-nums', getScoreColor(diversificationScore))}>
+              {diversificationScore}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className={cn('text-sm font-semibold', getScoreColor(diversificationScore))}>
+              {getScoreLabel(diversificationScore)}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {holdingsCount} holdings • Diversification score out of 100
+          </p>
+        </div>
+      </div>
+
+      {/* Warnings */}
+      {concentrationWarnings.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {concentrationWarnings.map((warning, idx) => (
+            <div 
+              key={idx} 
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg"
+            >
+              <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">{warning}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Top Holdings - Desktop always visible, mobile expandable */}
       <div className={cn(
         'sm:block',
         isExpanded ? 'block' : 'hidden'
       )}>
-        {/* Concentration Warnings */}
-        {concentrationWarnings.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Concentration Warnings</span>
-            </div>
-            <div className="space-y-2">
-              {concentrationWarnings.map((warning, idx) => (
-                <div key={idx} className="text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
-                  {warning}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Top Holdings */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Top Holdings</span>
-          </div>
-          <div className="space-y-2">
-            {topHoldings.map((holding, idx) => (
-              <div key={holding.symbol} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500 dark:text-gray-400 w-4">{idx + 1}.</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{holding.symbol}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full"
-                      style={{ width: `${Math.min(100, holding.allocation)}%` }}
-                    />
-                  </div>
-                  <span className="text-gray-600 dark:text-gray-400 w-12 text-right">
-                    {formatPercent(holding.allocation, 1)}
-                  </span>
+        <div className="flex items-center gap-2 mb-3">
+          <PieChart className="h-3.5 w-3.5 text-gray-400" />
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Top Allocations
+          </span>
+        </div>
+        <div className="space-y-2">
+          {topHoldings.map((holding, idx) => (
+            <div key={holding.symbol} className="flex items-center gap-3">
+              <span className="w-4 text-xs font-medium text-gray-400 tabular-nums">{idx + 1}</span>
+              <div className="w-12 text-xs font-semibold text-gray-900 dark:text-white">{holding.symbol}</div>
+              <div className="flex-1">
+                <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      'h-full rounded-full bg-gradient-to-r',
+                      idx === 0 ? 'from-blue-500 to-blue-400' :
+                      idx === 1 ? 'from-indigo-500 to-indigo-400' :
+                      idx === 2 ? 'from-purple-500 to-purple-400' :
+                      idx === 3 ? 'from-pink-500 to-pink-400' :
+                      'from-gray-400 to-gray-300'
+                    )}
+                    style={{ width: `${Math.min(100, holding.allocation)}%` }}
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Summary Stats */}
-        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Total Holdings</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{holdingsCount}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Portfolio Value</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {formatPercent((totalValue / (totalValue || 1)) * 100, 0)}
+              <span className="w-12 text-xs font-medium text-gray-600 dark:text-gray-400 text-right tabular-nums">
+                {formatPercent(holding.allocation, 1)}
+              </span>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
-

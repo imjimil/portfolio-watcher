@@ -221,28 +221,24 @@ export default function HoldingsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
-        <div className="mb-6 sm:mb-8 flex items-center justify-between">
+      <main className="container mx-auto px-4 pt-2 pb-20 sm:pt-6 md:pb-6 max-w-7xl">
+        <div className="mb-4 sm:mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
               Holdings
             </h1>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-              View all your portfolio holdings
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              {holdings.length} {holdings.length === 1 ? 'position' : 'positions'} in your portfolio
             </p>
           </div>
           {holdings.length > 0 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => exportHoldingsToCSV(holdings)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
-                title="Export to CSV"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export CSV</span>
-                <span className="sm:hidden">Export</span>
-              </button>
-            </div>
+            <button
+              onClick={() => exportHoldingsToCSV(holdings)}
+              className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              title="Export to CSV"
+            >
+              <Download className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            </button>
           )}
         </div>
 

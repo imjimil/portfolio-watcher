@@ -437,15 +437,15 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
       <Navbar />
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
+      <main className="container mx-auto px-4 pt-2 pb-20 sm:pt-6 md:pb-6 max-w-7xl">
         <>
-          {/* Portfolio Header */}
+          {/* Portfolio Header - Modern Fintech Style */}
           <div className="mb-4 sm:mb-6">
-            <div className="flex items-center justify-between gap-2 sm:gap-4">
-              <div className="min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
                 {loading ? (
                   <div className="animate-pulse">
-                    <div className="h-6 sm:h-8 lg:h-9 w-32 sm:w-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="h-7 w-40 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
                   </div>
                 ) : (
                   <>
@@ -457,46 +457,41 @@ export default function Dashboard() {
                         onCreateNew={() => setIsCreatePortfolioModalOpen(true)}
                       />
                     ) : (
-                      <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
                         {activePortfolio?.name || 'My Portfolio'}
                       </h2>
                     )}
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {!loading && activePortfolio && (
                   <button
                     onClick={() => {
                       const csv = exportPortfolioToCSV(activePortfolio);
                       downloadCSV(csv, `portfolio-${activePortfolio.name}-${new Date().toISOString().split('T')[0]}.csv`);
                     }}
-                    className="flex items-center justify-center p-2 sm:px-4 sm:py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    title="Export"
                   >
-                    <Download className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="hidden sm:inline sm:ml-2">Export</span>
+                    <Download className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                   </button>
                 )}
                 <button
                   onClick={() => setIsModalOpen(true)}
                   disabled={loading}
-                  className="flex items-center justify-center gap-1 px-2.5 sm:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="sm:hidden">Add</span>
+                  <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Add Transaction</span>
+                  <span className="sm:hidden">Add</span>
                 </button>
               </div>
             </div>
-            {!loading && activePortfolio?.description && (
-              <p className="hidden sm:block text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {activePortfolio.description}
-              </p>
-            )}
             {refreshing && (
-              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-2">
-                <Activity className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                Refreshing...
+              <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                <Activity className="h-4 w-4 animate-spin" />
+                <span>Updating prices...</span>
               </div>
             )}
           </div>
@@ -505,64 +500,54 @@ export default function Dashboard() {
           {loading ? (
             <SkeletonCollectiveStats />
           ) : portfolios.length > 1 && (
-            <div className="mb-4 sm:mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-3 sm:p-5">
-              <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
+            <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-100 dark:border-blue-800/50 p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">
-                    All Portfolios Combined
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    All Portfolios
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    {portfolios.length} portfolios
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {portfolios.length} portfolios combined
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
+                  <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {formatCurrency(collectiveStats.totalValue)}
                   </div>
-                  <div className={`text-xs sm:text-sm font-medium ${
+                  <div className={`text-sm font-semibold tabular-nums ${
                     collectiveGainLossPercent >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-red-500 dark:text-red-400'
                   }`}>
                     {collectiveGainLossPercent >= 0 ? '+' : ''}
-                    {collectiveGainLossPercent.toFixed(2)}%
-                  </div>
-                  <div className={`text-xs ${
-                    collectiveStats.totalGainLoss >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {collectiveStats.totalGainLoss >= 0 ? '+' : ''}
-                    {formatCurrency(collectiveStats.totalGainLoss)}
+                    {formatCurrency(collectiveStats.totalGainLoss)} ({collectiveGainLossPercent >= 0 ? '+' : ''}{collectiveGainLossPercent.toFixed(2)}%)
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Total Cost</div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
+              <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Cost</div>
+                  <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white tabular-nums mt-0.5 truncate">
                     {formatCurrency(collectiveStats.totalCost)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Total Gain/Loss</div>
-                  <div className={`font-semibold ${
-                    collectiveStats.totalGainLoss >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Gain</div>
+                  <div className={`text-xs sm:text-sm font-bold tabular-nums mt-0.5 truncate ${
+                    collectiveStats.totalGainLoss >= 0 ? 'text-emerald-600' : 'text-red-500'
                   }`}>
-                    {formatCurrency(collectiveStats.totalGainLoss)}
+                    {collectiveStats.totalGainLoss >= 0 ? '+' : ''}{formatCurrency(collectiveStats.totalGainLoss)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Transactions</div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Trades</div>
+                  <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white mt-0.5">
                     {collectiveStats.totalTransactions}
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-400">Portfolios</div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Folios</div>
+                  <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white mt-0.5">
                     {portfolios.length}
                   </div>
                 </div>
@@ -570,39 +555,39 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Stats Grid */}
+          {/* Stats Grid - Modern Cards */}
           {loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : portfolioStats ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
               <StatCard
-                title="Total Value"
+                title="Portfolio Value"
                 value={portfolioStats.totalValue}
                 icon={Wallet}
               />
               <StatCard
-                title="Total Cost"
+                title="Total Invested"
                 value={portfolioStats.totalCost}
                 icon={DollarSign}
               />
               <StatCard
-                title="Total Gain/Loss"
+                title="Total Return"
                 value={portfolioStats.totalGainLoss}
                 changePercent={portfolioStats.totalGainLossPercent}
                 icon={portfolioStats.totalGainLoss >= 0 ? TrendingUp : TrendingDown}
               />
               <StatCard
-                title="Day Change"
+                title="Today"
                 value={portfolioStats.dayChange}
                 changePercent={portfolioStats.dayChangePercent}
                 icon={Activity}
@@ -610,21 +595,22 @@ export default function Dashboard() {
             </div>
           ) : null}
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
               {/* Portfolio Performance Chart */}
               {loading ? (
                 <SkeletonChartCard />
               ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 && historicalData.length > 0 ? (
                 <SkeletonChartCard />
               ) : historicalData.length > 0 ? (
-                <div className="rounded-lg border bg-white dark:bg-gray-800 p-3 sm:p-4 lg:p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-base sm:text-lg font-semibold mb-2">Portfolio Performance</h3>
-                      {/* Total Value */}
+                <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                        Portfolio Value
+                      </p>
                       {activePortfolio?.totalValue !== undefined && (
-                        <div className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
+                        <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tabular-nums">
                           {formatCurrency(activePortfolio.totalValue)}
                         </div>
                       )}
@@ -643,37 +629,37 @@ export default function Dashboard() {
                           
                           return (
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={`text-sm sm:text-base font-medium ${
+                              <span className={`text-sm font-semibold tabular-nums ${
                                 isPositive
-                                  ? 'text-green-600 dark:text-green-400'
-                                  : 'text-red-600 dark:text-red-400'
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-red-500 dark:text-red-400'
                               }`}>
                                 {isPositive ? '+' : ''}
                                 {formatCurrency(performance.periodGain)}
                               </span>
-                              <span className={`text-sm sm:text-base font-medium ${
+                              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full tabular-nums ${
                                 isPositive
-                                  ? 'text-green-600 dark:text-green-400'
-                                  : 'text-red-600 dark:text-red-400'
+                                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                                  : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                               }`}>
-                                ({isPositive ? '+' : ''}
-                                {performance.periodGainPercent.toFixed(2)}%)
+                                {isPositive ? '+' : ''}
+                                {performance.periodGainPercent.toFixed(2)}%
                               </span>
                             </div>
                           );
                         })()
                       )}
                     </div>
-                    {/* Period selector - hidden on mobile, shown on desktop */}
-                    <div className="hidden sm:flex flex-wrap gap-1.5 sm:gap-2">
+                    {/* Period selector - Desktop */}
+                    <div className="hidden sm:flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
                       {(['1d', '5d', '1m', '6m', 'ytd', 'all'] as const).map((period) => (
                         <button
                           key={period}
                           onClick={() => setChartPeriod(period)}
-                          className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors ${
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                             chartPeriod === period
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                           }`}
                         >
                           {period.toUpperCase()}
@@ -688,16 +674,16 @@ export default function Dashboard() {
                     costBasis={activePortfolio?.totalCost}
                     transactions={activePortfolio?.transactions || []}
                   />
-                  {/* Period selector - shown on mobile, hidden on desktop */}
-                  <div className="flex sm:hidden flex-wrap gap-1.5 justify-center mt-4">
+                  {/* Period selector - Mobile */}
+                  <div className="flex sm:hidden gap-1 justify-center mt-4 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mx-auto w-fit">
                     {(['1d', '5d', '1m', '6m', 'ytd', 'all'] as const).map((period) => (
                       <button
                         key={period}
                         onClick={() => setChartPeriod(period)}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                        className={`px-2.5 py-1 text-[10px] font-semibold rounded-lg transition-all ${
                           chartPeriod === period
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                            : 'text-gray-500 dark:text-gray-400'
                         }`}
                       >
                         {period.toUpperCase()}
@@ -707,16 +693,16 @@ export default function Dashboard() {
                 </div>
               ) : null}
 
-              {/* Allocation Chart and Recent Transactions - Side by side on mobile */}
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-6">
+              {/* Allocation Chart and Recent Transactions */}
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
                 {/* Allocation Chart */}
                 {loading ? (
                   <SkeletonChartCard />
                 ) : refreshing && holdings.length > 0 ? (
                   <SkeletonChartCard />
                 ) : holdings.length > 0 ? (
-                  <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
-                    <h3 className="text-xs sm:text-base lg:text-lg font-semibold mb-2 sm:mb-3 lg:mb-4">Portfolio Allocation</h3>
+                  <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-3 sm:p-5">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Allocation</p>
                     <AllocationChart holdings={holdings} />
                   </div>
                 ) : null}
@@ -727,34 +713,34 @@ export default function Dashboard() {
                 ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 ? (
                   <SkeletonTransactionCard />
                 ) : activePortfolio && activePortfolio.transactions.length > 0 ? (
-                  <div className="rounded-lg border bg-white dark:bg-gray-800 p-2 sm:p-4 lg:p-6">
-                    <h3 className="text-xs sm:text-base lg:text-lg font-semibold mb-2 sm:mb-3 lg:mb-4">Recent Transactions</h3>
-                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-3 sm:p-5">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Recent Activity</p>
+                <div className="space-y-2">
                   {activePortfolio.transactions
                     .slice(-3)
                     .reverse()
                     .map((transaction) => (
                       <div
                         key={transaction.id}
-                        className="flex items-center justify-between p-1.5 sm:p-2 lg:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg gap-1.5 sm:gap-2"
+                        className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl gap-2"
                       >
-                        <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-4 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                           <div className="min-w-0">
-                            <div className="text-xs sm:text-sm lg:text-base font-medium truncate">{transaction.symbol}</div>
-                            <div className="text-[10px] sm:text-xs lg:text-sm text-gray-500 dark:text-gray-400">
+                            <div className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate">{transaction.symbol}</div>
+                            <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
                               {(() => {
                                 const [year, month, day] = transaction.date.split('-').map(Number);
                                 return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                               })()}
                             </div>
                           </div>
-                          <div className="text-[10px] sm:text-xs lg:text-sm flex-shrink-0">
+                          <div className="text-[10px] sm:text-xs flex-shrink-0">
                             <span
-                              className={`px-1 sm:px-1.5 lg:px-2 py-0.5 rounded ${
+                              className={`px-1.5 sm:px-2 py-0.5 rounded-md font-medium ${
                                 transaction.type === 'buy'
-                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                   : transaction.type === 'sell'
-                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                                   : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                               }`}
                             >
@@ -763,11 +749,11 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <div className="text-[10px] sm:text-xs lg:text-sm font-medium">
-                            {transaction.quantity} @ {formatCurrency(transaction.price)}
-                          </div>
-                          <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white tabular-nums">
                             {formatCurrency(transaction.quantity * transaction.price)}
+                          </div>
+                          <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                            {transaction.quantity} × {formatCurrency(transaction.price)}
                           </div>
                         </div>
                       </div>

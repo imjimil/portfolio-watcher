@@ -153,17 +153,19 @@ export default function WatchlistPage() {
     
     for (const item of items) {
       try {
-        // Fetch intraday data for today
-        const histData = await getHistoricalData(item.symbol, 1, '1d', true);
+        // First try intraday data for today
+        let histData = await getHistoricalData(item.symbol, 1, '1d', true);
+        
+        // If no intraday data (market closed/weekend/holiday), fall back to daily data
+        if (!histData || histData.length === 0) {
+          histData = await getHistoricalData(item.symbol, 5, '5d', false);
+        }
         
         // Calculate previous close from current price and change percent
-        // This is the most reliable way since we know the day's change
         let previousClose = item.currentPrice;
         if (item.changePercent !== undefined && item.changePercent !== 0) {
-          // previousClose = currentPrice / (1 + changePercent/100)
           previousClose = item.currentPrice / (1 + item.changePercent / 100);
         } else if (histData.length > 0) {
-          // Fallback: use first intraday price (market open) as approximation
           previousClose = histData[0].price;
         }
         
@@ -982,7 +984,7 @@ export default function WatchlistPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
+      <main className="container mx-auto px-4 pt-2 pb-20 sm:pt-6 md:pb-6 max-w-7xl">
         <div className="space-y-6">
           <div className="flex items-center justify-between mb-4 md:mb-0">
             <div>

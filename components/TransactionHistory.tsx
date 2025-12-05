@@ -1,8 +1,8 @@
 'use client';
 
 import { Transaction, Stock } from '@/types';
-import { formatCurrency, formatDateString } from '@/lib/utils';
-import { Calendar, DollarSign, Edit2, CheckSquare, Square } from 'lucide-react';
+import { formatCurrency, formatDateString, cn } from '@/lib/utils';
+import { Edit2, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface TransactionHistoryProps {
   transactions: Transaction[];
@@ -27,7 +27,7 @@ export default function TransactionHistory({
 }: TransactionHistoryProps) {
   if (transactions.length === 0) {
     return (
-      <div className="rounded-lg border bg-white dark:bg-gray-800 p-8 text-center">
+      <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-8 text-center">
         <p className="text-gray-500 dark:text-gray-400">No transactions found.</p>
       </div>
     );
@@ -53,194 +53,212 @@ export default function TransactionHistory({
     };
   };
 
-  const allSelected = showSelectAll && transactions.length > 0 && 
-    transactions.every(t => selectedTransactions.has(t.id));
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'buy':
+        return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+      case 'sell':
+        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+      case 'dividend':
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+      default:
+        return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400';
+    }
+  };
 
   return (
-    <div className="rounded-lg border bg-white dark:bg-gray-800 overflow-hidden">
-      <div className="overflow-x-auto -mx-3 sm:mx-0">
-        <div className="inline-block min-w-full align-middle px-3 sm:px-0">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-900/50">
-              <tr>
-                {onToggleSelect && (
-                  <th className="px-3 sm:px-6 py-3 text-left">
-                    {showSelectAll && (
-                      <button
-                        onClick={onToggleSelectAll}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      >
-                        {allSelected ? (
-                          <CheckSquare className="h-5 w-5" />
-                        ) : (
-                          <Square className="h-5 w-5" />
-                        )}
-                      </button>
+    <>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-2">
+        {transactions.map((transaction) => {
+          const gainLoss = calculateGainLoss(transaction);
+          const total = transaction.quantity * transaction.price;
+
+          return (
+            <div
+              key={transaction.id}
+              className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 p-3"
+            >
+              {/* Top Row: Symbol, Type Badge, Total */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-bold text-gray-900 dark:text-white">{transaction.symbol}</span>
+                  <span className={cn('px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase', getTypeColor(transaction.type))}>
+                    {transaction.type}
+                  </span>
+                </div>
+                <span className="font-bold text-gray-900 dark:text-white tabular-nums">
+                  {formatCurrency(total)}
+                </span>
+              </div>
+
+              {/* Middle Row: Date, Qty × Price */}
+              <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>{formatDateString(transaction.date)}</span>
+                <span className="tabular-nums">{transaction.quantity} × {formatCurrency(transaction.price)}</span>
+              </div>
+
+              {/* Bottom Row: Gain/Loss (if buy) + Actions */}
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-gray-700/50">
+                {gainLoss ? (
+                  <div className="flex items-center gap-1.5">
+                    {gainLoss.gainLoss >= 0 ? (
+                      <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <TrendingDown className="h-3.5 w-3.5 text-red-500" />
                     )}
-                  </th>
+                    <span className={cn(
+                      'text-xs font-semibold tabular-nums',
+                      gainLoss.gainLoss >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
+                    )}>
+                      {gainLoss.gainLoss >= 0 ? '+' : ''}{formatCurrency(gainLoss.gainLoss)} ({gainLoss.gainLossPercent.toFixed(1)}%)
+                    </span>
+                  </div>
+                ) : (
+                  <div />
                 )}
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <div className="flex items-center gap-1">
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(transaction)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(transaction.id)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-gray-100 dark:border-gray-700/50">
+                <th className="px-5 py-4 text-left text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-5 py-4 text-left text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Symbol
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-5 py-4 text-left text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-5 py-4 text-right text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Qty
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-5 py-4 text-right text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Price
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-5 py-4 text-right text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Total
                 </th>
                 {stockData && Object.keys(stockData).length > 0 && (
-                  <>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Current Value
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Gain/Loss
-                    </th>
-                  </>
+                  <th className="px-5 py-4 text-right text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Gain/Loss
+                  </th>
                 )}
                 {(onDelete || onEdit) && (
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-5 py-4 w-20"></th>
                 )}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
               {transactions.map((transaction) => {
                 const gainLoss = calculateGainLoss(transaction);
-                const isSelected = selectedTransactions.has(transaction.id);
 
                 return (
                   <tr
                     key={transaction.id}
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                      isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    }`}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
                   >
-                    {onToggleSelect && (
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => onToggleSelect(transaction.id)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                          {isSelected ? (
-                            <CheckSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                          ) : (
-                            <Square className="h-5 w-5" />
-                          )}
-                        </button>
-                      </td>
-                    )}
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{formatDateString(transaction.date)}</span>
-                      </div>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                      {formatDateString(transaction.date)}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span className="font-semibold text-gray-900 dark:text-white">
                         {transaction.symbol}
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <span
-                        className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-medium rounded ${
-                          transaction.type === 'buy'
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                            : transaction.type === 'sell'
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                        }`}
-                      >
-                        {transaction.type.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-gray-100">
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      <span className={cn('px-2 py-1 text-xs font-semibold rounded-full uppercase', getTypeColor(transaction.type))}>
+                        {transaction.type}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white tabular-nums">
                       {transaction.quantity.toFixed(2)}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-gray-100">
+                    <td className="px-5 py-4 whitespace-nowrap text-right text-sm text-gray-900 dark:text-white tabular-nums">
                       {formatCurrency(transaction.price)}
                     </td>
-                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {formatCurrency(transaction.quantity * transaction.price)}
-                        </span>
-                      </div>
+                    <td className="px-5 py-4 whitespace-nowrap text-right">
+                      <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
+                        {formatCurrency(transaction.quantity * transaction.price)}
+                      </span>
                       {transaction.fees && transaction.fees > 0 && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          Fees: {formatCurrency(transaction.fees)}
-                        </div>
+                        <div className="text-xs text-gray-500">+{formatCurrency(transaction.fees)} fees</div>
                       )}
                     </td>
                     {stockData && Object.keys(stockData).length > 0 && (
-                      <>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                          {gainLoss ? (
-                            <>
-                              <div>{formatCurrency(gainLoss.currentValue)}</div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                @ {formatCurrency(gainLoss.currentPrice)}
-                              </div>
-                            </>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          {gainLoss ? (
+                      <td className="px-5 py-4 whitespace-nowrap text-right">
+                        {gainLoss ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            {gainLoss.gainLoss >= 0 ? (
+                              <TrendingUp className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4 text-red-500" />
+                            )}
                             <div>
-                              <div className={`text-xs sm:text-sm font-medium ${
-                                gainLoss.gainLoss >= 0
-                                  ? 'text-green-600 dark:text-green-400'
-                                  : 'text-red-600 dark:text-red-400'
-                              }`}>
+                              <div className={cn(
+                                'text-sm font-semibold tabular-nums',
+                                gainLoss.gainLoss >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
+                              )}>
                                 {gainLoss.gainLoss >= 0 ? '+' : ''}{formatCurrency(gainLoss.gainLoss)}
                               </div>
-                              <div className={`text-xs ${
-                                gainLoss.gainLossPercent >= 0
-                                  ? 'text-green-600 dark:text-green-400'
-                                  : 'text-red-600 dark:text-red-400'
-                              }`}>
+                              <div className={cn(
+                                'text-xs tabular-nums',
+                                gainLoss.gainLossPercent >= 0 ? 'text-emerald-600/70' : 'text-red-500/70'
+                              )}>
                                 {gainLoss.gainLossPercent >= 0 ? '+' : ''}{gainLoss.gainLossPercent.toFixed(2)}%
                               </div>
                             </div>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                      </>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                     )}
                     {(onDelete || onEdit) && (
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                        <div className="flex items-center gap-2 sm:gap-3">
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
                           {onEdit && (
                             <button
                               onClick={() => onEdit(transaction)}
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1"
-                              title="Edit transaction"
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                              title="Edit"
                             >
-                              <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                              <span className="hidden sm:inline">Edit</span>
+                              <Edit2 className="h-4 w-4" />
                             </button>
                           )}
                           {onDelete && (
                             <button
                               onClick={() => onDelete(transaction.id)}
-                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                              title="Delete transaction"
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                              title="Delete"
                             >
-                              Delete
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           )}
                         </div>
@@ -253,6 +271,6 @@ export default function TransactionHistory({
           </table>
         </div>
       </div>
-    </div>
+    </>
   );
 }

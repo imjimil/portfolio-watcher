@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { TrendingUp, Mail, Lock, User, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, Mail, Lock, User, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -35,7 +35,6 @@ export default function SignupPage() {
 
       if (error) throw error;
 
-      // Sign up successful, show confirmation message
       setError(null);
       setSuccess(true);
       setLoading(false);
@@ -47,61 +46,56 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center px-4 py-12 relative overflow-hidden">
-      {/* Premium Animated Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-teal-500/10 dark:from-blue-900/20 dark:via-cyan-900/20 dark:to-teal-900/20 animate-gradient"></div>
-      <div className="absolute inset-0 bg-gradient-to-tr from-slate-500/5 via-blue-500/5 to-cyan-500/5 dark:from-slate-900/10 dark:via-blue-900/10 dark:to-cyan-900/10 animate-gradient-reverse"></div>
-      {/* Animated orbs */}
-      <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/10 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-60 animate-blob"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl" />
+      </div>
       
-      <div className="max-w-md w-full relative z-10">
+      <div className="max-w-sm w-full relative z-10">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6 group">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/50 group-hover:scale-110 transition-transform duration-300">
+          <Link href="/" className="inline-flex items-center gap-2 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center">
               <TrendingUp className="h-6 w-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 dark:from-blue-400 dark:via-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
-              Portfolio Tracker
-            </h1>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">Portfolio</span>
           </Link>
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Get Started
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Create your account and start tracking your portfolio
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Create your account
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            Start tracking your portfolio today
           </p>
         </div>
 
-        <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-700/50 p-8 shadow-2xl shadow-blue-500/10 dark:shadow-blue-500/20">
+        {/* Form Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700/50 p-6">
           {success ? (
-            <div className="text-center space-y-6">
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-6 shadow-lg">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/50">
-                    <CheckCircle2 className="w-8 h-8 text-white" />
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold text-emerald-800 dark:text-emerald-300 mb-3">
-                  Check your email
-                </h3>
-                <p className="text-sm text-emerald-700 dark:text-emerald-400 mb-2">
-                  We&apos;ve sent a confirmation link to
-                </p>
-                <p className="text-base font-semibold text-emerald-800 dark:text-emerald-300 mb-4 break-all">
-                  {email}
-                </p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-500">
-                  Click the link in the email to confirm your account and start using Portfolio Tracker.
-                </p>
+            <div className="text-center py-4">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Already confirmed?{' '}
-                  <Link href="/login" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                    Sign in
-                  </Link>
-                </p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Check your email
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                We sent a confirmation link to
+              </p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-4 break-all">
+                {email}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">
+                Click the link to confirm your account
+              </p>
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50 space-y-3">
+                <Link 
+                  href="/login" 
+                  className="block w-full text-center py-2.5 px-4 text-sm font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Sign in
+                </Link>
                 <button
                   onClick={() => {
                     setSuccess(false);
@@ -109,98 +103,98 @@ export default function SignupPage() {
                     setPassword('');
                     setName('');
                   }}
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                 >
-                  Sign up with a different email
+                  Use a different email
                 </button>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
               {error && (
-                <div className="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/30 dark:to-rose-900/30 border border-red-200 dark:border-red-800 rounded-xl p-4 shadow-sm">
-                  <p className="text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
+                <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl p-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                 </div>
               )}
 
-            <div>
-              <label htmlFor="name" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Full Name <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Name <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <User className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
+                    placeholder="John Doe"
+                  />
                 </div>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                  placeholder="John Doe"
-                />
               </div>
-            </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Email
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Mail className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
+                    placeholder="you@example.com"
+                  />
                 </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                  placeholder="you@example.com"
-                />
               </div>
-            </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Lock className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
+                    placeholder="••••••••"
+                  />
                 </div>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-all duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                  placeholder="Create a strong password"
-                />
+                <p className="text-xs text-gray-400 mt-1.5">
+                  At least 6 characters
+                </p>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1">
-                <Lock className="h-3 w-3" />
-                Must be at least 6 characters
-              </p>
-            </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full group bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 hover:from-blue-500 hover:via-cyan-500 hover:to-teal-500 text-white py-3 px-4 rounded-xl font-semibold shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/70 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-2"
+                className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-2.5 px-4 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-6"
               >
                 {loading ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-white/30 dark:border-gray-900/30 border-t-white dark:border-t-gray-900 rounded-full animate-spin" />
                     <span>Creating account...</span>
                   </>
                 ) : (
                   <>
-                    <span>Create Account</span>
-                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    <span>Create account</span>
+                    <ArrowRight className="h-4 w-4" />
                   </>
                 )}
               </button>
@@ -208,11 +202,11 @@ export default function SignupPage() {
           )}
 
           {!success && (
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700/50 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Already have an account?{' '}
-                <Link href="/login" className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-                  Sign in instead
+                <Link href="/login" className="font-semibold text-gray-900 dark:text-white hover:underline">
+                  Sign in
                 </Link>
               </p>
             </div>
@@ -222,4 +216,3 @@ export default function SignupPage() {
     </div>
   );
 }
-

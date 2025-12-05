@@ -315,7 +315,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navbar />
-        <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-6xl">
+        <main className="container mx-auto px-4 pt-2 pb-20 sm:pt-6 md:pb-6 max-w-6xl">
           {/* Header Skeleton */}
           <div className="mb-6 sm:mb-8 animate-pulse">
             <div className="h-9 w-64 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
@@ -349,26 +349,28 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
-      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-6xl">
+      <main className="container mx-auto px-4 pt-2 pb-20 sm:pt-6 md:pb-6 max-w-6xl">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Profile & Settings
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+            Settings
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your account and portfolio settings
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            Manage your account and portfolios
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Column - Profile Info & Stats */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Profile Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Profile Information</h2>
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
-                  <User className="h-8 w-8 text-white" />
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5">
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  Profile
+                </p>
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <User className="h-6 w-6 text-white" />
                 </div>
               </div>
 
@@ -459,44 +461,44 @@ export default function ProfilePage() {
             </div>
 
             {/* Account Statistics */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Account Statistics</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalPortfolios}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Portfolios</div>
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">Statistics</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                  <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1.5" />
+                  <div className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{stats.totalPortfolios}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Portfolios</div>
                 </div>
-                <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <List className="h-6 w-6 text-green-600 dark:text-green-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalTransactions}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Transactions</div>
+                <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                  <List className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mx-auto mb-1.5" />
+                  <div className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{stats.totalTransactions}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Trades</div>
                 </div>
-                <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                  <Eye className="h-6 w-6 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalWatchlistItems}</div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Watchlist</div>
+                <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+                  <Eye className="h-5 w-5 text-purple-600 dark:text-purple-400 mx-auto mb-1.5" />
+                  <div className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{stats.totalWatchlistItems}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Watching</div>
                 </div>
-                <div className="text-center p-4 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-cyan-600 dark:text-cyan-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                <div className="text-center p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-xl">
+                  <TrendingUp className="h-5 w-5 text-cyan-600 dark:text-cyan-400 mx-auto mb-1.5" />
+                  <div className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">
                     {formatCurrency(stats.totalValue)}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Total Value</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Value</div>
                 </div>
               </div>
             </div>
 
             {/* Portfolio Management */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Portfolio Management</h2>
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Portfolios</p>
                 <button
                   onClick={() => setIsCreatePortfolioModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:opacity-90 transition-opacity text-xs font-semibold"
                 >
-                  <Plus className="h-4 w-4" />
-                  Create New
+                  <Plus className="h-3.5 w-3.5" />
+                  New
                 </button>
               </div>
 
@@ -634,42 +636,38 @@ export default function ProfilePage() {
           </div>
 
           {/* Right Column - Quick Actions */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Data Management */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Data Management</h2>
-              <div className="space-y-3">
-                <button
-                  onClick={handleExportData}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  <Download className="h-5 w-5" />
-                  <span>Export All Data</span>
-                </button>
-              </div>
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Data</p>
+              <button
+                onClick={handleExportData}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Download className="h-5 w-5" />
+                <span className="text-sm font-medium">Export All Data</span>
+              </button>
             </div>
 
             {/* Security */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Security
-              </h2>
-              <div className="space-y-3">
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Your data is encrypted and securely stored. For password changes, please use the email reset link.
-                  </p>
-                </div>
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="h-4 w-4 text-emerald-600" />
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Security</p>
+              </div>
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Your data is encrypted and securely stored. For password changes, use the email reset link.
+                </p>
               </div>
             </div>
 
-            {/* Help & Support */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Need Help?</h2>
-              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <p>If you need assistance, please check the documentation or contact support.</p>
-              </div>
+            {/* Help */}
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Help</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Need assistance? Check documentation or contact support.
+              </p>
             </div>
           </div>
         </div>

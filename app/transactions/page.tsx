@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Download, Search, Filter, ArrowUpDown, Trash2, X, CheckSquare, Square, Info } from 'lucide-react';
+import { Download, Search, ArrowUpDown, Trash2, X } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import TransactionHistory from '@/components/TransactionHistory';
 import AddTransactionModal from '@/components/AddTransactionModal';
@@ -532,11 +532,11 @@ export default function TransactionsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
-        {/* Header with Portfolio Switcher */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div className="flex-1">
+      <main className="container mx-auto px-4 pt-2 pb-20 sm:pt-6 md:pb-6 max-w-7xl">
+        {/* Header */}
+        <div className="mb-4 sm:mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
               {portfolios.length > 1 ? (
                 <PortfolioSwitcher
                   portfolios={portfolios}
@@ -545,33 +545,33 @@ export default function TransactionsPage() {
                   onCreateNew={() => setIsCreatePortfolioModalOpen(true)}
                 />
               ) : (
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-                  Transactions
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                  Activity
                 </h1>
               )}
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-                Manage your buy, sell, and dividend transactions
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                {statistics.totalTransactions} transactions • {statistics.buyCount} buys, {statistics.sellCount} sells
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {activePortfolio && activePortfolio.transactions.length > 0 && (
                 <button
                   onClick={() => {
                     const csv = exportTransactionsToCSV(activePortfolio.transactions);
                     downloadCSV(csv, `transactions-${new Date().toISOString().split('T')[0]}.csv`);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title="Export CSV"
                 >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Export CSV</span>
-                  <span className="sm:hidden">Export</span>
+                  <Download className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                 </button>
               )}
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:opacity-90 transition-opacity"
               >
-                <span>Add Transaction</span>
+                <span className="hidden sm:inline">Add Transaction</span>
+                <span className="sm:hidden">Add</span>
               </button>
             </div>
           </div>
@@ -579,152 +579,70 @@ export default function TransactionsPage() {
 
         {/* Statistics Cards */}
         {loading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             {[...Array(4)].map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
         ) : activePortfolio && activePortfolio.transactions.length > 0 && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="rounded-lg border bg-white dark:bg-gray-800 p-4 shadow-sm relative">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
-                    <div className="relative tooltip-container">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTooltip(openTooltip === 'totalSpent' ? null : 'totalSpent');
-                        }}
-                        className="focus:outline-none"
-                      >
-                        <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
-                      </button>
-                      {openTooltip === 'totalSpent' && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg z-10">
-                          Total amount spent on all buy transactions, including fees
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                            <div className="border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Total Spent
+                  </p>
+                  <p className="mt-1.5 text-lg sm:text-xl font-bold text-gray-900 dark:text-white tabular-nums truncate">
                     {formatCurrency(statistics.totalSpent)}
                   </p>
                 </div>
-                <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-3">
-                  <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <div className="p-2 sm:p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 flex-shrink-0">
+                  <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 dark:text-red-400" />
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border bg-white dark:bg-gray-800 p-4 shadow-sm relative">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Received</p>
-                    <div className="relative tooltip-container">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTooltip(openTooltip === 'totalReceived' ? null : 'totalReceived');
-                        }}
-                        className="focus:outline-none"
-                      >
-                        <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
-                      </button>
-                      {openTooltip === 'totalReceived' && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg z-10">
-                          Total amount received from all sell and dividend transactions, minus fees
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                            <div className="border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Total Received
+                  </p>
+                  <p className="mt-1.5 text-lg sm:text-xl font-bold text-gray-900 dark:text-white tabular-nums truncate">
                     {formatCurrency(statistics.totalReceived)}
                   </p>
                 </div>
-                <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3">
-                  <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex-shrink-0">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border bg-white dark:bg-gray-800 p-4 shadow-sm relative">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Cost Basis</p>
-                    <div className="relative tooltip-container">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTooltip(openTooltip === 'costBasis' ? null : 'costBasis');
-                        }}
-                        className="focus:outline-none"
-                      >
-                        <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
-                      </button>
-                      {openTooltip === 'costBasis' && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 p-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg z-10">
-                          Total amount you&apos;ve invested in your current holdings. This is what you compare to Portfolio Value to calculate your gain/loss
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                            <div className="border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Cost Basis
+                  </p>
+                  <p className="mt-1.5 text-lg sm:text-xl font-bold text-gray-900 dark:text-white tabular-nums truncate">
                     {formatCurrency(statistics.costBasis)}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Total invested in current holdings
-                  </p>
                 </div>
-                <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-3">
-                  <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="p-2 sm:p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex-shrink-0">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border bg-white dark:bg-gray-800 p-4 shadow-sm relative">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
-                    <div className="relative tooltip-container">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenTooltip(openTooltip === 'totalTransactions' ? null : 'totalTransactions');
-                        }}
-                        className="focus:outline-none"
-                      >
-                        <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" />
-                      </button>
-                      {openTooltip === 'totalTransactions' && (
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg z-10">
-                          Total number of transactions (buy, sell, and dividend) in this portfolio
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                            <div className="border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Trades
+                  </p>
+                  <p className="mt-1.5 text-lg sm:text-xl font-bold text-gray-900 dark:text-white tabular-nums">
                     {statistics.totalTransactions}
                   </p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {statistics.buyCount} buys, {statistics.sellCount} sells, {statistics.dividendCount} dividends
-                  </p>
                 </div>
-                <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-3">
-                  <Activity className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <div className="p-2 sm:p-2.5 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex-shrink-0">
+                  <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </div>
@@ -733,109 +651,93 @@ export default function TransactionsPage() {
 
         {/* Filters and Search */}
         {!loading && activePortfolio && activePortfolio.transactions.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by symbol..."
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+          <div className="mb-4 sm:mb-6 space-y-3">
+            {/* Search Bar - Full Width */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by symbol..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
 
-              {/* Type Filter */}
-              <div className="flex gap-2">
-                <select
-                  value={typeFilter}
-                  onChange={(e) => {
-                    setTypeFilter(e.target.value as any);
+            {/* Filter Pills Row - Horizontal Scroll on Mobile */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+              {/* Type Filter Pills */}
+              {(['all', 'buy', 'sell', 'dividend'] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => {
+                    setTypeFilter(type);
                     setCurrentPage(1);
                   }}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all ${
+                    typeFilter === type
+                      ? type === 'buy' 
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                        : type === 'sell'
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        : type === 'dividend'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                        : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
                 >
-                  <option value="all">All Types</option>
-                  <option value="buy">Buy</option>
-                  <option value="sell">Sell</option>
-                  <option value="dividend">Dividend</option>
-                </select>
-              </div>
+                  {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              ))}
 
-              {/* Date Range */}
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => {
-                    setDateFrom(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="From"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => {
-                    setDateTo(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="To"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {/* Divider */}
+              <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
 
-              {/* Clear Filters */}
+              {/* Sort Pills */}
+              {(['date', 'symbol', 'amount'] as SortField[]).map((field) => (
+                <button
+                  key={field}
+                  onClick={() => handleSort(field)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-all flex items-center gap-1 ${
+                    sortField === field
+                      ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {field.charAt(0).toUpperCase() + field.slice(1)}
+                  {sortField === field && (
+                    <ArrowUpDown className={`h-3 w-3 ${sortDirection === 'asc' ? 'rotate-180' : ''}`} />
+                  )}
+                </button>
+              ))}
+
+              {/* Clear if any filter active */}
               {(searchQuery || typeFilter !== 'all' || dateFrom || dateTo) && (
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                  className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all flex items-center gap-1"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3" />
                   Clear
                 </button>
               )}
             </div>
 
-            {/* Sort Options */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Sort by:</span>
-              {(['date', 'symbol', 'type', 'amount'] as SortField[]).map((field) => (
-                <button
-                  key={field}
-                  onClick={() => handleSort(field)}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors flex items-center gap-1 ${
-                    sortField === field
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {field.charAt(0).toUpperCase() + field.slice(1)}
-                  <ArrowUpDown className={`h-3 w-3 ${sortField === field && sortDirection === 'asc' ? 'rotate-180' : ''}`} />
-                </button>
-              ))}
-            </div>
-
-            {/* Results count and bulk actions */}
-            <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Showing {paginatedTransactions.length} of {filteredAndSortedTransactions.length} transactions
-              </div>
+            {/* Results count */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {filteredAndSortedTransactions.length} {filteredAndSortedTransactions.length === 1 ? 'transaction' : 'transactions'}
+              </p>
               {selectedTransactions.size > 0 && (
                 <button
                   onClick={handleBulkDelete}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs font-medium"
                 >
-                  <Trash2 className="h-4 w-4" />
-                  Delete {selectedTransactions.size} selected
+                  <Trash2 className="h-3 w-3" />
+                  Delete ({selectedTransactions.size})
                 </button>
               )}
             </div>
@@ -864,17 +766,17 @@ export default function TransactionsPage() {
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Previous
                 </button>
-                <span className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
-                  Page {currentPage} of {totalPages}
+                <span className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
+                  {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                 </button>

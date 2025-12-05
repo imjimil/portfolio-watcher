@@ -87,21 +87,40 @@ export async function calculateHistoricalPortfolioValue(
     return [];
   }
 
-  const isIntraday = period === '1d';
+  let isIntraday = period === '1d';
   
   // Fetch historical data for all symbols in parallel
   // For "all" period, ensure we request maximum available data
-  const historicalDataPromises = symbols.map(symbol => 
+  let historicalDataPromises = symbols.map(symbol => 
     getHistoricalData(symbol, days, range, isIntraday).catch((error) => {
       console.error(`Error fetching historical data for ${symbol}:`, error);
       return [];
     })
   );
   
-  const allHistoricalData = await Promise.all(historicalDataPromises);
+  let allHistoricalData = await Promise.all(historicalDataPromises);
   
   // Check if we got any data at all
-  const hasAnyData = allHistoricalData.some(data => data.length > 0);
+  let hasAnyData = allHistoricalData.some(data => data.length > 0);
+  
+  // For 1D, if no intraday data (market closed), fall back to 2-day daily data
+  if (!hasAnyData && period === '1d') {
+    console.log('No intraday data available, falling back to daily data');
+    isIntraday = false;
+    days = 2;
+    range = '2d';
+    
+    historicalDataPromises = symbols.map(symbol => 
+      getHistoricalData(symbol, days, range, false).catch((error) => {
+        console.error(`Error fetching fallback data for ${symbol}:`, error);
+        return [];
+      })
+    );
+    
+    allHistoricalData = await Promise.all(historicalDataPromises);
+    hasAnyData = allHistoricalData.some(data => data.length > 0);
+  }
+  
   if (!hasAnyData) {
     console.warn('No historical data received for any symbols');
     return [];

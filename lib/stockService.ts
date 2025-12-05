@@ -288,37 +288,33 @@ export async function getHistoricalData(
         
         if (intraday) {
           // For intraday, include timestamp for time display
-          // Filter to only today's data (market hours: 9:30 AM - 4:00 PM ET)
-          // Yahoo Finance timestamps are in UTC, but we need to convert to ET (UTC-5 or UTC-4 depending on DST)
-          const today = new Date();
-          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          // Yahoo Finance returns 5-minute intervals during market hours
+          // We'll include all available intraday data (typically today's trading day)
+          
+          const etFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+          
+          // Get today's date in ET for comparison
+          const todayET = new Date();
+          const todayParts = etFormatter.formatToParts(todayET);
+          const todayYear = todayParts.find(p => p.type === 'year')?.value;
+          const todayMonth = todayParts.find(p => p.type === 'month')?.value;
+          const todayDay = todayParts.find(p => p.type === 'day')?.value;
+          const todayStrET = `${todayYear}-${todayMonth}-${todayDay}`;
+          
+          // First pass: collect all data points with their dates
+          const allDataPoints: { dateStr: string; dateTimeStr: string; price: number; volume: number }[] = [];
           
           for (let i = 0; i < timestamps.length; i++) {
             if (closes[i] !== null && closes[i] !== undefined) {
               const date = new Date(timestamps[i] * 1000);
-              
-              // Convert UTC to Eastern Time
-              // ET is UTC-5 (EST) or UTC-4 (EDT)
-              // Use toLocaleString with timeZone to get ET time
-              const etDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-              const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
-              
-              // Calculate the offset in hours
-              const offsetHours = (etDate.getTime() - utcDate.getTime()) / (1000 * 60 * 60);
-              
-              // Apply offset to get ET time
-              const etTime = new Date(date.getTime() - (offsetHours * 60 * 60 * 1000));
-              
-              // Alternative: Use Intl.DateTimeFormat to get ET time directly
-              const etFormatter = new Intl.DateTimeFormat('en-US', {
-                timeZone: 'America/New_York',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-              });
               
               const parts = etFormatter.formatToParts(date);
               const year = parts.find(p => p.type === 'year')?.value;
@@ -328,18 +324,41 @@ export async function getHistoricalData(
               const minute = parts.find(p => p.type === 'minute')?.value;
               
               const dateStr = `${year}-${month}-${day}`;
+              const dateTimeStr = `${dateStr} ${hour}:${minute}`;
               
-              // Only include today's data
-              if (dateStr === todayStr) {
-                // Format as YYYY-MM-DD HH:MM in ET timezone
-                const dateTimeStr = `${dateStr} ${hour}:${minute}`;
-                
-                historicalData.push({
-                  date: dateTimeStr, // Include time for intraday in ET
-                  price: closes[i],
-                  volume: volumes[i] || 0,
-                });
-              }
+              allDataPoints.push({
+                dateStr,
+                dateTimeStr,
+                price: closes[i],
+                volume: volumes[i] || 0,
+              });
+            }
+          }
+          
+          // Try to get today's data first
+          const todayData = allDataPoints.filter(d => d.dateStr === todayStrET);
+          
+          if (todayData.length > 0) {
+            // We have today's intraday data
+            for (const d of todayData) {
+              historicalData.push({
+                date: d.dateTimeStr,
+                price: d.price,
+                volume: d.volume,
+              });
+            }
+          } else if (allDataPoints.length > 0) {
+            // No data for today (market not open yet or weekend)
+            // Use the most recent trading day's intraday data
+            const mostRecentDate = allDataPoints[allDataPoints.length - 1].dateStr;
+            const recentData = allDataPoints.filter(d => d.dateStr === mostRecentDate);
+            
+            for (const d of recentData) {
+              historicalData.push({
+                date: d.dateTimeStr,
+                price: d.price,
+                volume: d.volume,
+              });
             }
           }
         } else {

@@ -189,12 +189,10 @@ export default function WatchlistPage() {
     setSparklineData(prev => ({ ...prev, ...data }));
   }, []);
 
-  // Track if we've done the initial price refresh this session
   const hasRefreshedRef = useRef(false);
 
   const loadData = useCallback(async () => {
     try {
-      // Check if we need to clear stale cache (from previous day)
       const cacheWasStale = clearStaleCacheIfNeeded();
       
       const [loadedWatchlist, loadedAlerts, loadedPortfolios] = await Promise.all([
@@ -207,9 +205,6 @@ export default function WatchlistPage() {
       setPortfolios(loadedPortfolios);
       
       if (loadedWatchlist.length > 0) {
-        // Only fetch fresh prices if:
-        // 1. Cache was stale (from previous day), OR
-        // 2. First load of this session (prices in DB might be old)
         const shouldRefresh = cacheWasStale || !hasRefreshedRef.current;
         
         if (shouldRefresh) {
@@ -225,7 +220,6 @@ export default function WatchlistPage() {
                 if (stock && stock.currentPrice > 0) {
                   const index = updated.findIndex(w => w.symbol === item.symbol);
                   if (index !== -1) {
-                    // Check all three fields like updatePricesOnly does
                     if (
                       updated[index].currentPrice !== stock.currentPrice ||
                       updated[index].change !== stock.change ||
@@ -252,16 +246,12 @@ export default function WatchlistPage() {
               await saveWatchlist(updated);
             }
             
-            // Load sparklines with fresh data
             loadSparklines(updated.length > 0 ? updated : loadedWatchlist);
-            
-            // Mark refresh as complete only after successful completion
             hasRefreshedRef.current = true;
           } finally {
             setRefreshing(false);
           }
         } else {
-          // Use cached/stored data, just load sparklines
           loadSparklines(loadedWatchlist);
         }
       }

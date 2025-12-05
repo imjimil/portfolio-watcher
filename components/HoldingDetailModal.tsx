@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { Holding, Portfolio } from '@/types';
 import { formatCurrency, formatPercent, formatNumber, getColorForValue, cn } from '@/lib/utils';
 import { ResponsiveContainer, LineChart, Line, Area, XAxis, YAxis, ReferenceLine, Tooltip } from 'recharts';
+import CompanyLogo from './CompanyLogo';
 
 interface HoldingDetailModalProps {
   isOpen: boolean;
@@ -21,13 +22,19 @@ export default function HoldingDetailModal({ isOpen, onClose, holding, portfolio
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
-              {holding.symbol} - {holding.name}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Detailed Holding Information
-            </p>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <CompanyLogo symbol={holding.symbol} name={holding.name} size={40} />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                {holding.symbol}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                {holding.name}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Detailed Holding Information
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}

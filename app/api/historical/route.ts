@@ -38,9 +38,8 @@ export async function GET(request: NextRequest) {
     
     const url = `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${symbol.toUpperCase()}?interval=${finalInterval}&range=${finalRange}`;
     
-    // Intraday data needs shorter cache, daily data can be cached longer
     const isIntraday = finalInterval !== '1d';
-    const revalidateTime = isIntraday ? 30 : 300; // 30s for intraday, 5min for daily
+    const revalidateTime = isIntraday ? 30 : 300;
     
     const response = await fetch(url, {
       next: { revalidate: revalidateTime }
@@ -52,7 +51,6 @@ export async function GET(request: NextRequest) {
     
     const data = await response.json();
     
-    // Cache headers based on data type
     const cacheControl = isIntraday 
       ? 'public, s-maxage=30, stale-while-revalidate=60'
       : 'public, s-maxage=300, stale-while-revalidate=600';

@@ -79,12 +79,8 @@ export function calculatePeriodPerformance(input: PerformanceInput): PeriodPerfo
   const startCostBasis = historicalData[0]?.volume || 0;
   const startDate = historicalData[0]?.date || '';
 
-  // Use ACTUAL current values from dashboard (always accurate)
-  // Historical data may have incomplete stocks, especially for intraday
   const endValue = currentValue;
   const endCostBasis = currentCostBasis;
-
-  // Current unrealized gain - use actual portfolio values
   const currentUnrealizedGain = currentValue - currentCostBasis;
 
   // Find first transaction date (excluding dividends)
@@ -106,25 +102,13 @@ export function calculatePeriodPerformance(input: PerformanceInput): PeriodPerfo
   let periodGainPercent: number;
 
   if (isAllTime) {
-    // ALL TIME: Gain is simply current unrealized
-    // At moment of first purchase, unrealized was $0 (value = cost)
-    // So total gain = current unrealized - 0 = current unrealized
     periodGain = currentUnrealizedGain;
     periodGainPercent = endCostBasis > 0 
       ? (periodGain / endCostBasis) * 100 
       : 0;
   } else {
-    // PERIOD: Gain is the change in unrealized during the period
-    // This properly accounts for cash flows:
-    // - If you add $500, both value and cost increase by ~$500
-    // - So unrealized stays roughly the same (no artificial gain)
     const startUnrealizedGain = startValue - startCostBasis;
     periodGain = currentUnrealizedGain - startUnrealizedGain;
-    
-    // SIMPLE MATH: Calculate percentage using ACTUAL current portfolio value
-    // startOfPeriodValue = actualCurrentValue - gain
-    // percentage = gain / startOfPeriodValue
-    // Use currentValue (from dashboard, always accurate) NOT endValue (from historical, might be incomplete)
     const calculatedStartValue = currentValue - periodGain;
     periodGainPercent = calculatedStartValue > 0 
       ? (periodGain / calculatedStartValue) * 100 

@@ -1,13 +1,10 @@
 import { Portfolio, WatchlistItem, Alert } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 
-// Cache user to avoid repeated auth calls
 let cachedUser: { user: any; timestamp: number } | null = null;
-const USER_CACHE_DURATION = 60000; // 1 minute cache
+const USER_CACHE_DURATION = 60000;
 
-// Helper to get current user (with caching)
 async function getCurrentUser() {
-  // Return cached user if still valid
   if (cachedUser && Date.now() - cachedUser.timestamp < USER_CACHE_DURATION) {
     return cachedUser.user;
   }
@@ -16,12 +13,10 @@ async function getCurrentUser() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User not authenticated');
   
-  // Cache the user
   cachedUser = { user, timestamp: Date.now() };
   return user;
 }
 
-// Clear user cache (call on logout)
 export function clearUserCache() {
   cachedUser = null;
 }
@@ -32,7 +27,6 @@ export async function getPortfolios(): Promise<Portfolio[]> {
     const user = await getCurrentUser();
     const supabase = createClient();
     
-    // Fetch portfolios with transaction count
     const { data, error } = await supabase
       .from('portfolios')
       .select('*, transactions(count)')
@@ -41,9 +35,7 @@ export async function getPortfolios(): Promise<Portfolio[]> {
 
     if (error) throw error;
 
-    // Convert database format to Portfolio type
     return (data || []).map((p: any) => {
-      // Get transaction count from the nested query result
       const transactionCount = p.transactions?.[0]?.count || 0;
       
       return {

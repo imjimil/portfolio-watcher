@@ -12,9 +12,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const url = `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=2d`;
-    // Use short revalidation for fresh data during market hours
     const response = await fetch(url, { 
-      next: { revalidate: 30 } // Cache for 30 seconds server-side
+      next: { revalidate: 30 }
     });
     
     if (!response.ok) {
@@ -23,7 +22,6 @@ export async function GET(request: NextRequest) {
     
     const data = await response.json();
     
-    // Allow short client-side caching (30s) for better performance
     return NextResponse.json(data, {
       headers: {
         'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'

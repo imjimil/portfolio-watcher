@@ -11,8 +11,6 @@ const CustomTooltip = ({ active, payload, label, isIntraday, startValue }: any) 
     const value = data.value;
     const costBasis = data.costBasis || 0;
     
-    // For intraday, calculate change from start of period (more meaningful)
-    // For other periods, show unrealized gain
     const gainLoss = isIntraday ? (value - startValue) : (value - costBasis);
     const baseValue = isIntraday ? startValue : costBasis;
     const gainLossPercent = baseValue > 0 ? (gainLoss / baseValue) * 100 : 0;
@@ -148,15 +146,8 @@ export default function PortfolioChart({
     };
   });
 
-  // Get start value for reference line
   const startValue = chartData[0]?.value || 0;
-  
-  // Check if this is intraday data
   const isIntraday = period === '1d';
-  
-  // Determine if positive or negative based on the ACTUAL period gain/loss
-  // This matches the displayed gain/loss text (which uses unrealized change calculation)
-  // If periodGain is provided, use it; otherwise fall back to visual change
   const isPositive = periodGain !== undefined 
     ? periodGain >= 0 
     : (chartData[chartData.length - 1]?.value || 0) >= startValue;

@@ -172,9 +172,14 @@ export default function HoldingsPage() {
       // Unrealized gain is current gain/loss minus realized gains
       const unrealizedGain = holding.gainLoss - realizedGain;
 
+      // Use stock name if available and different from symbol, otherwise keep existing name
+      const finalName = stock?.name && stock.name !== holding.symbol 
+        ? stock.name 
+        : (holding.name && holding.name !== holding.symbol ? holding.name : holding.symbol);
+      
       return {
         ...holding,
-        name: stock?.name || holding.name,
+        name: finalName,
         marketCap: stock?.marketCap,
         peRatio: stock?.peRatio,
         dividendYield: stock?.dividendYield,

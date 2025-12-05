@@ -5,56 +5,37 @@ const API_BASE_URL = '/api';
 
 // Request cache to prevent duplicate API calls
 const requestCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 60000; // 1 minute cache for quote data
-const SEARCH_CACHE_DURATION = 300000; // 5 minutes cache for search results
+const CACHE_DURATION = 60000;
+const SEARCH_CACHE_DURATION = 300000;
 
-// Track last cache clear date to auto-clear stale data from previous days
 let lastCacheClearDate: string | null = null;
 
-/**
- * Get today's date string in ET timezone (market timezone)
- */
 function getTodayET(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
-/**
- * Clear stale cache from previous days
- * This ensures fresh data on the first load of each trading day
- */
 export function clearStaleCacheIfNeeded(): boolean {
   const todayET = getTodayET();
   if (lastCacheClearDate !== todayET) {
     requestCache.clear();
     lastCacheClearDate = todayET;
-    return true; // Cache was cleared
+    return true;
   }
-  return false; // Cache is still valid for today
+  return false;
 }
 
-/**
- * Clear all cached data - for manual refresh
- */
 export function clearStockCache(): void {
   requestCache.clear();
 }
 
-/**
- * Check if cache has fresh data (< cache duration)
- */
 export function hasFreshCache(cacheKey: string, cacheDuration: number = CACHE_DURATION): boolean {
   const cached = requestCache.get(cacheKey);
   return !!(cached && Date.now() - cached.timestamp < cacheDuration);
 }
 
-/**
- * Make a cached API request through Next.js API routes
- */
 async function cachedFetch(endpoint: string, cacheKey: string, cacheDuration: number = CACHE_DURATION): Promise<any> {
-  // Auto-clear stale cache from previous days
   clearStaleCacheIfNeeded();
   
-  // Check cache first
   const cached = requestCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < cacheDuration) {
     return cached.data;
@@ -142,6 +123,7 @@ export async function searchStocks(query: string): Promise<Stock[]> {
  * Get stock quote data from Yahoo Finance with extended metrics
  */
 async function getQuoteData(symbol: string): Promise<{
+  name?: string;
   currentPrice: number;
   previousClose: number;
   change: number;
@@ -168,6 +150,9 @@ async function getQuoteData(symbol: string): Promise<{
       const indicators = result.indicators || {};
       const quote = indicators.quote || [];
       
+      // Extract company name from meta
+      const name = meta.longName || meta.shortName || undefined;
+      
       // Extract additional metrics from meta
       const marketCap = meta.marketCap || meta.regularMarketMarketCap || undefined;
       const peRatio = meta.trailingPE || meta.forwardPE || undefined;
@@ -188,6 +173,7 @@ async function getQuoteData(symbol: string): Promise<{
           const volume = volumes.length > 0 ? volumes[volumes.length - 1] : meta.regularMarketVolume || 0;
           
           return {
+            name,
             currentPrice,
             previousClose,
             change,
@@ -211,6 +197,7 @@ async function getQuoteData(symbol: string): Promise<{
         const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
         
         return {
+          name,
           currentPrice,
           previousClose,
           change,
@@ -249,7 +236,7 @@ export async function getStockPriceData(symbol: string, name?: string): Promise<
 
     return {
       symbol: upperSymbol,
-      name: name || upperSymbol,
+      name: quoteData.name || name || upperSymbol,
       currentPrice: quoteData.currentPrice,
       previousClose: quoteData.previousClose,
       change: quoteData.change,

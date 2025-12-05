@@ -111,8 +111,6 @@ export function calculateHoldingsAtDate(
 
 /**
  * Calculate total portfolio value at a specific date
- * Only includes holdings that have valid prices - returns { value, symbols } 
- * so caller can match with cost basis calculation
  */
 export function calculatePortfolioValueAtDate(
   transactions: Transaction[],
@@ -139,7 +137,6 @@ export function calculatePortfolioValueAtDateWithSymbols(
   const targetLocalDate = parseLocalDate(targetDateStr);
   const holdings = calculateHoldingsAtDate(transactions, targetLocalDate, pricesAtDate);
   
-  // Only count holdings that have valid prices
   const holdingsWithPrices = holdings.filter(h => h.currentPrice > 0);
   const symbolsWithPrices = holdingsWithPrices.map(h => h.symbol);
   const value = holdingsWithPrices.reduce((sum, h) => sum + h.currentValue, 0);
@@ -160,7 +157,6 @@ export function calculateCostBasisAtDate(
   const transactionsUpToDate = transactions.filter(t => {
     const tDate = parseLocalDate(t.date);
     const target = parseLocalDate(targetDateStr);
-    // Filter by date and optionally by symbols
     const dateOk = tDate <= target && t.type !== 'dividend';
     const symbolOk = !onlySymbols || onlySymbols.includes(t.symbol);
     return dateOk && symbolOk;

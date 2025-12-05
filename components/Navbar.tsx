@@ -32,7 +32,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    clearUserCache(); // Clear cached user to avoid stale auth
+    clearUserCache();
     setProfileMenuOpen(false);
     router.push('/login');
     router.refresh();

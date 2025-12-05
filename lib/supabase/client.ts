@@ -1,6 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-// Singleton instance to prevent multiple clients
 let supabaseInstance: ReturnType<typeof createBrowserClient> | null = null;
 
 export function createClient() {

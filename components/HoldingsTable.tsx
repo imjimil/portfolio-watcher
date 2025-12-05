@@ -6,6 +6,7 @@ import { formatCurrency, formatPercent, formatNumber, cn } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Trash2, Bell, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import AddTransactionModal from './AddTransactionModal';
 import HoldingDetailModal from './HoldingDetailModal';
+import CompanyLogo from './CompanyLogo';
 import { getWatchlist, saveWatchlist } from '@/lib/storage';
 import { getStockPriceData } from '@/lib/stockService';
 
@@ -174,9 +175,12 @@ export default function HoldingsTable({
             >
               {/* Header: Symbol & Percentage */}
               <div className="flex items-start justify-between gap-1 mb-2">
-                <div className="min-w-0">
-                  <span className="font-bold text-sm text-gray-900 dark:text-white">{holding.symbol}</span>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{formatNumber(holding.quantity, 2)} shares</p>
+                <div className="min-w-0 flex items-center gap-2 flex-1">
+                  <CompanyLogo symbol={holding.symbol} name={holding.name} size={28} />
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-sm text-gray-900 dark:text-white block truncate">{holding.symbol}</span>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{holding.name}</p>
+                  </div>
                 </div>
                 <div className={cn(
                   'flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
@@ -242,13 +246,11 @@ export default function HoldingsTable({
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer"
                   >
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-700 dark:text-gray-300">
-                          {holding.symbol.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-white">{holding.symbol}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 max-w-[150px] truncate">{holding.name}</div>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <CompanyLogo symbol={holding.symbol} name={holding.name} size={36} />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-gray-900 dark:text-white truncate">{holding.symbol}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{holding.name}</div>
                         </div>
                       </div>
                     </td>

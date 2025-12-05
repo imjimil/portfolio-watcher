@@ -18,6 +18,7 @@ import {
   getPortfolios,
   getPortfolio,
   savePortfolio,
+  updatePortfolioStats,
   getActivePortfolioId,
   setActivePortfolioId,
   getTransactions,
@@ -242,7 +243,15 @@ export default function Dashboard() {
         };
       });
 
-      // Save to storage
+      // Update portfolio stats in DB (lightweight - no transaction sync)
+      await updatePortfolioStats(portfolio.id, {
+        totalValue,
+        totalCost,
+        totalGainLoss,
+        totalGainLossPercent,
+      });
+
+      // Update local state
       const updatedPortfolio: Portfolio = {
         ...portfolio,
         holdings: calculatedHoldings,
@@ -252,7 +261,6 @@ export default function Dashboard() {
         totalGainLossPercent,
         updatedAt: new Date().toISOString(),
       };
-      await savePortfolio(updatedPortfolio);
 
       // Update the portfolios array with the updated portfolio
       setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
@@ -378,10 +386,62 @@ export default function Dashboard() {
     setPortfolios(portfoliosWithTransactions);
     setActivePortfolio(newPortfolio);
     await setActivePortfolioId(newPortfolio.id);
-    setLoading(false);
-    // Reset the hash so updatePortfolio will run
+    // Reset hash to force recalculation
     lastTransactionHashRef.current = '';
-    updatePortfolio(newPortfolio);
+  };
+
+  const handleCreatePortfolioWithTransactions = async (
+    name: string, 
+    importedTransactions: Omit<Transaction, 'id'>[], 
+    description?: string
+  ) => {
+    // Create transactions with IDs
+    const transactions: Transaction[] = importedTransactions.map(t => ({
+      ...t,
+      id: uuid(),
+    }));
+
+    const portfolioId = uuid();
+    const newPortfolio: Portfolio = {
+      id: portfolioId,
+      name,
+      description,
+      holdings: [],
+      transactions,
+      totalValue: 0,
+      totalCost: 0,
+      totalGainLoss: 0,
+      totalGainLossPercent: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await savePortfolio(newPortfolio);
+    
+    // Reload the portfolio from DB to get the saved transactions
+    const savedPortfolio = await getPortfolio(portfolioId);
+    if (!savedPortfolio) {
+      throw new Error('Failed to load created portfolio');
+    }
+    
+    // Reload all portfolios
+    const updatedPortfolios = await getPortfolios();
+    const portfoliosWithTransactions = await Promise.all(
+      updatedPortfolios.map(async (p) => {
+        if (p.id === portfolioId) {
+          return savedPortfolio;
+        }
+        const fullPortfolio = await getPortfolio(p.id);
+        return fullPortfolio || p;
+      })
+    );
+    
+    setPortfolios(portfoliosWithTransactions);
+    setActivePortfolio(savedPortfolio);
+    await setActivePortfolioId(portfolioId);
+    
+    // Reset hash to force recalculation
+    lastTransactionHashRef.current = '';
   };
 
   const handleSelectPortfolio = async (portfolioId: string) => {
@@ -779,6 +839,7 @@ export default function Dashboard() {
         isOpen={isCreatePortfolioModalOpen}
         onClose={() => setIsCreatePortfolioModalOpen(false)}
         onCreate={handleCreatePortfolio}
+        onCreateWithTransactions={handleCreatePortfolioWithTransactions}
       />
     </div>
   );

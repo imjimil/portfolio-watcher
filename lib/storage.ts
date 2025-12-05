@@ -43,7 +43,7 @@ export async function getPortfolios(): Promise<Portfolio[]> {
   }
 }
 
-export async function savePortfolio(portfolio: Portfolio): Promise<void> {
+export async function savePortfolio(portfolio: Portfolio, skipTransactions: boolean = false): Promise<void> {
   try {
     const user = await getCurrentUser();
     const supabase = createClient();
@@ -57,42 +57,59 @@ export async function savePortfolio(portfolio: Portfolio): Promise<void> {
       total_cost: portfolio.totalCost,
       total_gain_loss: portfolio.totalGainLoss,
       total_gain_loss_percent: portfolio.totalGainLossPercent,
+      created_at: portfolio.createdAt || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    // Check if portfolio exists
-    const { data: existing } = await supabase
+    // Use upsert to handle both insert and update
+    const { error } = await supabase
       .from('portfolios')
-      .select('id')
-      .eq('id', portfolio.id)
-      .single();
+      .upsert(portfolioData, {
+        onConflict: 'id',
+      });
 
-    if (existing) {
-      // Update
-      const { error } = await supabase
-        .from('portfolios')
-        .update(portfolioData)
-        .eq('id', portfolio.id);
-
-      if (error) throw error;
-    } else {
-      // Insert
-      const { error } = await supabase
-        .from('portfolios')
-        .insert({
-          ...portfolioData,
-          created_at: portfolio.createdAt || new Date().toISOString(),
-        });
-
-      if (error) throw error;
+    if (error) {
+      console.error('Error upserting portfolio:', error);
+      throw error;
     }
 
-    // Save transactions separately
-    if (portfolio.transactions && portfolio.transactions.length > 0) {
+    // Save transactions only if not skipped and there are new transactions
+    if (!skipTransactions && portfolio.transactions && portfolio.transactions.length > 0) {
       await saveTransactions(portfolio.id, portfolio.transactions);
     }
   } catch (error) {
     console.error('Error saving portfolio:', error);
+    throw error;
+  }
+}
+
+// Lightweight function to update just portfolio stats (no transaction sync)
+export async function updatePortfolioStats(portfolioId: string, stats: {
+  totalValue: number;
+  totalCost: number;
+  totalGainLoss: number;
+  totalGainLossPercent: number;
+}): Promise<void> {
+  try {
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from('portfolios')
+      .update({
+        total_value: stats.totalValue,
+        total_cost: stats.totalCost,
+        total_gain_loss: stats.totalGainLoss,
+        total_gain_loss_percent: stats.totalGainLossPercent,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', portfolioId);
+
+    if (error) {
+      console.error('Error updating portfolio stats:', error);
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error updating portfolio stats:', error);
     throw error;
   }
 }
@@ -185,10 +202,11 @@ export async function getTransactions(portfolioId: string) {
   }
 }
 
+// Insert new transactions only (for import/create)
 async function saveTransactions(portfolioId: string, transactions: any[]) {
   const supabase = createClient();
 
-  // Get existing transactions
+  // Get existing transaction IDs
   const { data: existing } = await supabase
     .from('transactions')
     .select('id')
@@ -196,59 +214,62 @@ async function saveTransactions(portfolioId: string, transactions: any[]) {
 
   const existingIds = new Set((existing || []).map((t: any) => t.id));
   const toInsert = transactions.filter(t => !existingIds.has(t.id));
-  const toUpdate = transactions.filter(t => existingIds.has(t.id));
 
-  // Insert new transactions
+  // Only insert new transactions
   if (toInsert.length > 0) {
+    const insertData = toInsert.map(t => ({
+      id: t.id,
+      portfolio_id: portfolioId,
+      symbol: t.symbol,
+      type: t.type,
+      quantity: t.quantity,
+      price: t.price,
+      date: t.date,
+      fees: t.fees || 0,
+      notes: t.notes || null,
+    }));
+    
     const { error } = await supabase
       .from('transactions')
-      .insert(
-        toInsert.map(t => ({
-          id: t.id,
-          portfolio_id: portfolioId,
-          symbol: t.symbol,
-          type: t.type,
-          quantity: t.quantity,
-          price: t.price,
-          date: t.date,
-          fees: t.fees || 0,
-          notes: t.notes || null,
-        }))
-      );
+      .insert(insertData);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error inserting transactions:', error);
+      throw error;
+    }
   }
+}
 
-  // Update existing transactions
-  for (const t of toUpdate) {
-    const { error } = await supabase
-      .from('transactions')
-      .update({
-        symbol: t.symbol,
-        type: t.type,
-        quantity: t.quantity,
-        price: t.price,
-        date: t.date,
-        fees: t.fees || 0,
-        notes: t.notes || null,
-      })
-      .eq('id', t.id);
+// Update a single transaction (for edit)
+export async function updateTransaction(transaction: any) {
+  const supabase = createClient();
+  
+  const { error } = await supabase
+    .from('transactions')
+    .update({
+      symbol: transaction.symbol,
+      type: transaction.type,
+      quantity: transaction.quantity,
+      price: transaction.price,
+      date: transaction.date,
+      fees: transaction.fees || 0,
+      notes: transaction.notes || null,
+    })
+    .eq('id', transaction.id);
 
-    if (error) throw error;
-  }
+  if (error) throw error;
+}
 
-  // Delete transactions that are no longer in the list
-  const currentIds = new Set(transactions.map(t => t.id));
-  const toDelete = (existing || []).filter((t: any) => !currentIds.has(t.id));
+// Delete a single transaction
+export async function deleteTransaction(transactionId: string) {
+  const supabase = createClient();
+  
+  const { error } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('id', transactionId);
 
-  if (toDelete.length > 0) {
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .in('id', toDelete.map((t: any) => t.id));
-
-    if (error) throw error;
-  }
+  if (error) throw error;
 }
 
 // Watchlist

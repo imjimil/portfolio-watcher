@@ -8,7 +8,7 @@ import AddTransactionModal from '@/components/AddTransactionModal';
 import PortfolioSwitcher from '@/components/PortfolioSwitcher';
 import CreatePortfolioModal from '@/components/CreatePortfolioModal';
 import { Portfolio, Transaction, Holding, Stock } from '@/types';
-import { getPortfolios, getActivePortfolioId, getPortfolio, savePortfolio, setActivePortfolioId } from '@/lib/storage';
+import { getPortfolios, getActivePortfolioId, getPortfolio, savePortfolio, updatePortfolioStats, setActivePortfolioId } from '@/lib/storage';
 import { getMultipleStocks, calculateHoldings } from '@/lib/stockService';
 import { exportTransactionsToCSV, downloadCSV } from '@/lib/export';
 import { formatCurrency } from '@/lib/utils';
@@ -181,7 +181,15 @@ export default function TransactionsPage() {
       const totalGainLoss = totalValue - totalCost;
       const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
 
-      // Update portfolio with new calculations
+      // Update portfolio stats in DB (lightweight - no transaction sync)
+      await updatePortfolioStats(portfolioToUse.id, {
+        totalValue,
+        totalCost,
+        totalGainLoss,
+        totalGainLossPercent,
+      });
+
+      // Update local state
       const updatedPortfolio: Portfolio = {
         ...portfolioToUse,
         holdings: calculatedHoldings,
@@ -191,8 +199,6 @@ export default function TransactionsPage() {
         totalGainLossPercent,
         updatedAt: new Date().toISOString(),
       };
-
-      await savePortfolio(updatedPortfolio);
       
       // Use functional update to avoid triggering useEffect
       setActivePortfolio(prev => {
@@ -490,6 +496,58 @@ export default function TransactionsPage() {
     setPortfolios(portfoliosWithTransactions);
     setActivePortfolio(newPortfolio);
     await setActivePortfolioId(newPortfolio.id);
+  };
+
+  const handleCreatePortfolioWithTransactions = async (
+    name: string, 
+    importedTransactions: Omit<Transaction, 'id'>[], 
+    description?: string
+  ) => {
+    const transactions: Transaction[] = importedTransactions.map(t => ({
+      ...t,
+      id: uuid(),
+    }));
+
+    const portfolioId = uuid();
+    const newPortfolio: Portfolio = {
+      id: portfolioId,
+      name,
+      description,
+      holdings: [],
+      transactions,
+      totalValue: 0,
+      totalCost: 0,
+      totalGainLoss: 0,
+      totalGainLossPercent: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await savePortfolio(newPortfolio);
+    
+    // Reload the portfolio from DB to get the saved transactions
+    const savedPortfolio = await getPortfolio(portfolioId);
+    if (!savedPortfolio) {
+      throw new Error('Failed to load created portfolio');
+    }
+    
+    // Reload all portfolios
+    const updatedPortfolios = await getPortfolios();
+    const portfoliosWithTransactions = await Promise.all(
+      updatedPortfolios.map(async (p) => {
+        if (p.id === portfolioId) {
+          return savedPortfolio;
+        }
+        const fullPortfolio = await getPortfolio(p.id);
+        return fullPortfolio || p;
+      })
+    );
+    
+    setPortfolios(portfoliosWithTransactions);
+    setActivePortfolio(savedPortfolio);
+    await setActivePortfolioId(portfolioId);
+    // Reset hash to trigger holdings update
+    lastTransactionHashRef.current = '';
   };
 
   const toggleSelectTransaction = (id: string) => {
@@ -804,6 +862,7 @@ export default function TransactionsPage() {
         isOpen={isCreatePortfolioModalOpen}
         onClose={() => setIsCreatePortfolioModalOpen(false)}
         onCreate={handleCreatePortfolio}
+        onCreateWithTransactions={handleCreatePortfolioWithTransactions}
       />
     </div>
   );

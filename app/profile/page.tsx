@@ -246,8 +246,9 @@ export default function ProfilePage() {
   };
 
   const handleCreatePortfolio = async (name: string, description?: string) => {
+    const portfolioId = uuid();
     const newPortfolio: Portfolio = {
-      id: uuid(),
+      id: portfolioId,
       name,
       description,
       holdings: [],
@@ -269,6 +270,55 @@ export default function ProfilePage() {
       })
     );
     setPortfolios(portfoliosWithTransactions);
+    
+    // Set the newly created portfolio as active
+    await setActivePortfolioId(portfolioId);
+  };
+
+  const handleCreatePortfolioWithTransactions = async (
+    name: string,
+    importedTransactions: Omit<import('@/types').Transaction, 'id'>[],
+    description?: string
+  ) => {
+    const transactions = importedTransactions.map(t => ({
+      ...t,
+      id: uuid(),
+    }));
+
+    const portfolioId = uuid();
+    const newPortfolio: Portfolio = {
+      id: portfolioId,
+      name,
+      description,
+      holdings: [],
+      transactions,
+      totalValue: 0,
+      totalCost: 0,
+      totalGainLoss: 0,
+      totalGainLossPercent: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await savePortfolio(newPortfolio);
+    
+    // Reload the portfolio from DB
+    const savedPortfolio = await getPortfolio(portfolioId);
+    
+    const updatedPortfolios = await getPortfolios();
+    const portfoliosWithTransactions = await Promise.all(
+      updatedPortfolios.map(async (p) => {
+        if (p.id === portfolioId && savedPortfolio) {
+          return savedPortfolio;
+        }
+        const fullPortfolio = await getPortfolio(p.id);
+        return fullPortfolio || p;
+      })
+    );
+    setPortfolios(portfoliosWithTransactions);
+    
+    // Set the newly created portfolio as active so Dashboard shows it
+    await setActivePortfolioId(portfolioId);
 
     // Update stats
     const totalTransactions = portfoliosWithTransactions.reduce((sum, p) => sum + (p.transactions?.length || 0), 0);
@@ -587,12 +637,24 @@ export default function ProfilePage() {
                               </p>
                             )}
                             <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
-                              <span>{formatCurrency(portfolio.totalValue)}</span>
-                              <span>
-                                {portfolio.totalGainLossPercent >= 0 ? '+' : ''}
-                                {portfolio.totalGainLossPercent.toFixed(2)}%
-                              </span>
-                              <span>{portfolio.transactions?.length || 0} transactions</span>
+                              {portfolio.totalValue === 0 && (portfolio.transactions?.length || 0) > 0 ? (
+                                <>
+                                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                    Calculating...
+                                  </span>
+                                  <span>{portfolio.transactions?.length || 0} transactions</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>{formatCurrency(portfolio.totalValue)}</span>
+                                  <span className={portfolio.totalGainLossPercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
+                                    {portfolio.totalGainLossPercent >= 0 ? '+' : ''}
+                                    {portfolio.totalGainLossPercent.toFixed(2)}%
+                                  </span>
+                                  <span>{portfolio.transactions?.length || 0} transactions</span>
+                                </>
+                              )}
                             </div>
                           </>
                         )}
@@ -677,6 +739,7 @@ export default function ProfilePage() {
         isOpen={isCreatePortfolioModalOpen}
         onClose={() => setIsCreatePortfolioModalOpen(false)}
         onCreate={handleCreatePortfolio}
+        onCreateWithTransactions={handleCreatePortfolioWithTransactions}
       />
     </div>
   );

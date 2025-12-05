@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface CompanyLogoProps {
@@ -45,13 +46,14 @@ export default function CompanyLogo({ symbol, name, size = 36, className }: Comp
       className={cn('relative flex-shrink-0 overflow-hidden', className)}
       style={{ width: size, height: size }}
     >
-      <img
+      <Image
         src={logoUrl}
         alt={`${symbol} logo`}
+        width={size}
+        height={size}
         className="rounded-xl w-full h-full object-cover bg-gray-50 dark:bg-gray-800"
-        style={{ width: size, height: size }}
         onError={() => setImageError(true)}
-        loading="lazy"
+        unoptimized
       />
     </div>
   );

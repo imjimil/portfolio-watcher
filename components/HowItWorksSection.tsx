@@ -13,6 +13,41 @@ interface HowItWorksSectionProps {
   steps: Step[];
 }
 
+function StepCard({ step, index, isLast }: { step: Step; index: number; isLast: boolean }) {
+  const { ref, isVisible } = useScrollAnimation({ 
+    threshold: 0.1, 
+    triggerOnce: true,
+    rootMargin: '0px 0px -100px 0px'
+  });
+  
+  return (
+    <div
+      ref={ref}
+      className={`relative text-center transition-all duration-700 ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      }`}
+      style={{ transitionDelay: `${index * 150}ms` }}
+    >
+      <div className="text-4xl sm:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 dark:from-blue-400 dark:via-cyan-400 dark:to-teal-400 bg-clip-text text-transparent opacity-20 mb-3 sm:mb-4">
+        {step.number}
+      </div>
+      <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl sm:rounded-2xl p-6 sm:p-8 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-2xl hover:shadow-blue-500/10 dark:hover:shadow-blue-500/20 transition-all duration-500 hover:scale-105 hover:-translate-y-1">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3">
+          {step.title}
+        </h3>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+          {step.description}
+        </p>
+      </div>
+      {!isLast && (
+        <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2">
+          <ArrowRight className="h-8 w-8 text-gray-400" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HowItWorksSection({ steps }: HowItWorksSectionProps) {
   const { ref, isVisible } = useScrollAnimation({ threshold: 0.1, triggerOnce: true });
 
@@ -34,41 +69,9 @@ export default function HowItWorksSection({ steps }: HowItWorksSectionProps) {
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-5xl mx-auto">
-          {steps.map((step, idx) => {
-            const { ref: stepRef, isVisible: stepVisible } = useScrollAnimation({ 
-              threshold: 0.1, 
-              triggerOnce: true,
-              rootMargin: '0px 0px -100px 0px'
-            });
-            
-            return (
-              <div
-                key={idx}
-                ref={stepRef}
-                className={`relative text-center transition-all duration-700 ${
-                  stepVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-                }`}
-                style={{ transitionDelay: `${idx * 150}ms` }}
-              >
-                <div className="text-4xl sm:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 dark:from-blue-400 dark:via-cyan-400 dark:to-teal-400 bg-clip-text text-transparent opacity-20 mb-3 sm:mb-4">
-                  {step.number}
-                </div>
-                <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl sm:rounded-2xl p-6 sm:p-8 border border-gray-200/50 dark:border-gray-700/50 hover:shadow-2xl hover:shadow-blue-500/10 dark:hover:shadow-blue-500/20 transition-all duration-500 hover:scale-105 hover:-translate-y-1">
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3">
-                    {step.title}
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                    {step.description}
-                  </p>
-                </div>
-                {idx < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                    <ArrowRight className="h-8 w-8 text-gray-400" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {steps.map((step, idx) => (
+            <StepCard key={idx} step={step} index={idx} isLast={idx === steps.length - 1} />
+          ))}
         </div>
       </div>
     </section>

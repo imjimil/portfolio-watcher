@@ -503,7 +503,7 @@ export default function LandingPage() {
                 </div>
                 
                 {/* Quote */}
-                <p className="text-gray-300 mb-6 leading-relaxed">"{testimonial.content}"</p>
+                <p className="text-gray-300 mb-6 leading-relaxed">&ldquo;{testimonial.content}&rdquo;</p>
                 
                 {/* Author */}
                 <div className="flex items-center gap-3">
@@ -537,7 +537,7 @@ export default function LandingPage() {
               </span>
             </h2>
             <p className="text-gray-400 max-w-xl mx-auto">
-              Start free, upgrade when you're ready. No hidden fees, no surprises.
+              Start free, upgrade when you&apos;re ready. No hidden fees, no surprises.
             </p>
           </div>
 

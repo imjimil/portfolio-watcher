@@ -329,11 +329,11 @@ export async function saveWatchlist(watchlist: WatchlistItem[]): Promise<void> {
       .select('symbol')
       .eq('user_id', user.id);
 
-    const existingSymbols = new Set((existing || []).map((w: any) => w.symbol));
-    const currentSymbols = new Set(watchlist.map(w => w.symbol));
+    const existingSymbols = new Set<string>((existing || []).map((w: any) => w.symbol as string));
+    const currentSymbols = new Set<string>(watchlist.map(w => w.symbol));
 
     // Delete items that are no longer in the watchlist
-    const toDelete = Array.from(existingSymbols).filter(s => !currentSymbols.has(s));
+    const toDelete = Array.from(existingSymbols).filter((s: string) => !currentSymbols.has(s));
     if (toDelete.length > 0) {
       const { error: deleteError } = await supabase
         .from('watchlist')

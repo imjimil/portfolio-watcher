@@ -28,7 +28,8 @@ export default function StatCard({
       case 'currency':
         return formatCurrency(value);
       case 'percent':
-        return formatPercent(value);
+        // Include sign for percentage values (gain/loss)
+        return formatPercent(value, 2, true);
       default:
         return value.toLocaleString();
     }

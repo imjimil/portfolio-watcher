@@ -15,28 +15,34 @@ export async function getPortfolios(): Promise<Portfolio[]> {
     const user = await getCurrentUser();
     const supabase = createClient();
     
+    // Fetch portfolios with transaction count
     const { data, error } = await supabase
       .from('portfolios')
-      .select('*')
+      .select('*, transactions(count)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     // Convert database format to Portfolio type
-    return (data || []).map((p: any) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description || undefined,
-      holdings: [], // Will be calculated
-      transactions: [], // Will be loaded separately
-      totalValue: Number(p.total_value) || 0,
-      totalCost: Number(p.total_cost) || 0,
-      totalGainLoss: Number(p.total_gain_loss) || 0,
-      totalGainLossPercent: Number(p.total_gain_loss_percent) || 0,
-      createdAt: p.created_at,
-      updatedAt: p.updated_at,
-    }));
+    return (data || []).map((p: any) => {
+      // Get transaction count from the nested query result
+      const transactionCount = p.transactions?.[0]?.count || 0;
+      
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description || undefined,
+        holdings: [], // Will be calculated
+        transactions: new Array(transactionCount), // Placeholder array with correct length for count display
+        totalValue: Number(p.total_value) || 0,
+        totalCost: Number(p.total_cost) || 0,
+        totalGainLoss: Number(p.total_gain_loss) || 0,
+        totalGainLossPercent: Number(p.total_gain_loss_percent) || 0,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      };
+    });
   } catch (error) {
     console.error('Error fetching portfolios:', error);
     return [];

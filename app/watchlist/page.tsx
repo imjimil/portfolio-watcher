@@ -14,6 +14,7 @@ import { formatCurrency, formatPercent, getColorForValue, cn } from '@/lib/utils
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, ReferenceLine } from 'recharts';
 import AlertModal from '@/components/AlertModal';
 import TargetPriceModal from '@/components/TargetPriceModal';
+import SkeletonWatchlist from '@/components/skeletons/SkeletonWatchlist';
 
 type SortField = 'symbol' | 'price' | 'change' | 'changePercent' | 'targetPrice' | 'dateAdded';
 type FilterType = 'all' | 'gainers' | 'losers' | 'alerts' | 'targets';
@@ -36,6 +37,7 @@ export default function WatchlistPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAllResults, setShowAllResults] = useState(false);
   const [sortField, setSortField] = useState<SortField>('dateAdded');
@@ -265,6 +267,8 @@ export default function WatchlistPage() {
       }
     } catch (error) {
       console.error('Error loading watchlist data:', error);
+    } finally {
+      setPageLoading(false);
     }
   }, [loadSparklines]);
 
@@ -1047,6 +1051,9 @@ export default function WatchlistPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
       <main className="container mx-auto px-4 pt-2 pb-20 sm:pt-6 md:pb-6 max-w-7xl">
+        {pageLoading ? (
+          <SkeletonWatchlist />
+        ) : (
         <div className="space-y-6">
           <div className="flex items-center justify-between mb-4 md:mb-0">
             <div>
@@ -1282,6 +1289,7 @@ export default function WatchlistPage() {
             />
           )}
         </div>
+        )}
       </main>
     </div>
   );

@@ -7,6 +7,7 @@ import { Moon, Sun, TrendingUp, Wallet, List, Eye, LogOut, User, ChevronDown, Se
 import { useTheme } from './ThemeProvider';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { clearUserCache } from '@/lib/storage';
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
@@ -31,6 +32,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    clearUserCache(); // Clear cached user to avoid stale auth
     setProfileMenuOpen(false);
     router.push('/login');
     router.refresh();

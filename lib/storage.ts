@@ -1,12 +1,29 @@
 import { Portfolio, WatchlistItem, Alert } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 
-// Helper to get current user
+// Cache user to avoid repeated auth calls
+let cachedUser: { user: any; timestamp: number } | null = null;
+const USER_CACHE_DURATION = 60000; // 1 minute cache
+
+// Helper to get current user (with caching)
 async function getCurrentUser() {
+  // Return cached user if still valid
+  if (cachedUser && Date.now() - cachedUser.timestamp < USER_CACHE_DURATION) {
+    return cachedUser.user;
+  }
+  
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('User not authenticated');
+  
+  // Cache the user
+  cachedUser = { user, timestamp: Date.now() };
   return user;
+}
+
+// Clear user cache (call on logout)
+export function clearUserCache() {
+  cachedUser = null;
 }
 
 // Portfolios

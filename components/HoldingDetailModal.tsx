@@ -58,7 +58,7 @@ export default function HoldingDetailModal({ isOpen, onClose, holding, portfolio
                 {formatCurrency(holding.gainLoss)}
               </div>
               <div className={cn('text-xs', getColorForValue(holding.gainLossPercent))}>
-                {formatPercent(holding.gainLossPercent)}
+                {holding.gainLossPercent >= 0 ? '+' : ''}{formatPercent(holding.gainLossPercent)}
               </div>
             </div>
             <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">

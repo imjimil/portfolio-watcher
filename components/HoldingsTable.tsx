@@ -168,7 +168,7 @@ export default function HoldingsTable({
                     : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30'
                 )}>
                   {isPositive ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                  {formatPercent(holding.gainLossPercent)}
+                  {isPositive ? '+' : ''}{formatPercent(holding.gainLossPercent)}
                 </div>
               </div>
 
@@ -310,7 +310,7 @@ export default function HoldingsTable({
                             'text-xs tabular-nums',
                             isPositive ? 'text-emerald-600/70 dark:text-emerald-400/70' : 'text-red-500/70 dark:text-red-400/70'
                           )}>
-                            {formatPercent(holding.gainLossPercent)}
+                            {isPositive ? '+' : ''}{formatPercent(holding.gainLossPercent)}
                           </div>
                         </div>
                       </div>

@@ -211,7 +211,6 @@ export default function WatchlistPage() {
         const shouldRefresh = cacheWasStale || !hasRefreshedRef.current;
         
         if (shouldRefresh) {
-          hasRefreshedRef.current = true;
           setRefreshing(true);
           
           try {
@@ -223,14 +222,21 @@ export default function WatchlistPage() {
                 const stock = await getStockPriceData(item.symbol, item.name);
                 if (stock && stock.currentPrice > 0) {
                   const index = updated.findIndex(w => w.symbol === item.symbol);
-                  if (index !== -1 && updated[index].currentPrice !== stock.currentPrice) {
-                    updated[index] = {
-                      ...updated[index],
-                      currentPrice: stock.currentPrice,
-                      change: stock.change,
-                      changePercent: stock.changePercent,
-                    };
-                    hasChanges = true;
+                  if (index !== -1) {
+                    // Check all three fields like updatePricesOnly does
+                    if (
+                      updated[index].currentPrice !== stock.currentPrice ||
+                      updated[index].change !== stock.change ||
+                      updated[index].changePercent !== stock.changePercent
+                    ) {
+                      updated[index] = {
+                        ...updated[index],
+                        currentPrice: stock.currentPrice,
+                        change: stock.change,
+                        changePercent: stock.changePercent,
+                      };
+                      hasChanges = true;
+                    }
                   }
                 }
               } catch (error) {
@@ -246,6 +252,9 @@ export default function WatchlistPage() {
             
             // Load sparklines with fresh data
             loadSparklines(updated.length > 0 ? updated : loadedWatchlist);
+            
+            // Mark refresh as complete only after successful completion
+            hasRefreshedRef.current = true;
           } finally {
             setRefreshing(false);
           }
@@ -1025,7 +1034,7 @@ export default function WatchlistPage() {
               <div className="text-sm text-gray-600 dark:text-gray-400">{item.name}</div>
               <div className="mt-2 text-lg font-semibold">{formatCurrency(item.currentPrice)}</div>
               <div className={cn('text-sm', getColorForValue(item.changePercent))}>
-                {formatPercent(item.changePercent)}
+                {item.changePercent >= 0 ? '+' : ''}{formatPercent(item.changePercent)}
               </div>
             </div>
           ))}

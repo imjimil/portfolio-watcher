@@ -1,5 +1,5 @@
 import { Transaction, HistoricalData } from '@/types';
-import { calculatePortfolioValueAtDate, calculateCostBasisAtDate } from './portfolioCalculator';
+import { calculatePortfolioValueAtDateWithSymbols, calculateCostBasisAtDate } from './portfolioCalculator';
 import { getHistoricalData } from './stockService';
 import { parseLocalDate } from './utils';
 
@@ -161,7 +161,7 @@ export async function calculateHistoricalPortfolioValue(
     return [];
   }
   
-  // For 1d period, add yesterday's close as first data point
+  // For 1d period, fetch yesterday's close FIRST (needed for forward-fill)
   let yesterdayClosePrices: Record<string, number> = {};
   if (isIntraday) {
     const yesterday = new Date(today);
@@ -185,6 +185,27 @@ export async function calculateHistoricalPortfolioValue(
         yesterdayClosePrices[symbol] = price;
       }
     });
+    
+    // Forward-fill missing prices for INTRADAY data
+    // Start with yesterday's close as the initial "last known price"
+    // This prevents wild dips when some stocks don't have data at certain times
+    const lastKnownPrices: Record<string, number> = { ...yesterdayClosePrices };
+    
+    for (const dateKey of allDates) {
+      const pricesAtDate = pricesByDate.get(dateKey)!;
+      
+      // Update last known prices with any new data
+      Array.from(pricesAtDate.entries()).forEach(([symbol, price]) => {
+        lastKnownPrices[symbol] = price;
+      });
+      
+      // Fill in missing prices with last known values
+      for (const symbol of symbols) {
+        if (!pricesAtDate.has(symbol) && lastKnownPrices[symbol] !== undefined) {
+          pricesAtDate.set(symbol, lastKnownPrices[symbol]);
+        }
+      }
+    }
   }
   
   // Calculate portfolio value for each date
@@ -211,8 +232,14 @@ export async function calculateHistoricalPortfolioValue(
     }
     
     // Calculate portfolio value and cost basis at this date
-    const portfolioValue = calculatePortfolioValueAtDate(transactionsUpToDate, targetDate, pricesAtDate);
-    const costBasis = calculateCostBasisAtDate(transactionsUpToDate, targetDate);
+    // IMPORTANT: Only include symbols that have prices to avoid mismatch
+    const { value: portfolioValue, symbolsWithPrices } = calculatePortfolioValueAtDateWithSymbols(
+      transactionsUpToDate, 
+      targetDate, 
+      pricesAtDate
+    );
+    // Calculate cost basis ONLY for symbols that have prices
+    const costBasis = calculateCostBasisAtDate(transactionsUpToDate, targetDate, symbolsWithPrices);
     
     // Only add if we have valid data
     // For "all" period, be more lenient - allow portfolio value even if some symbols don't have prices
@@ -240,12 +267,13 @@ export async function calculateHistoricalPortfolioValue(
     });
     
     if (transactionsUpToYesterday.length > 0) {
-      const yesterdayPortfolioValue = calculatePortfolioValueAtDate(
+      // Use consistent symbols for value and cost basis
+      const { value: yesterdayPortfolioValue, symbolsWithPrices } = calculatePortfolioValueAtDateWithSymbols(
         transactionsUpToYesterday,
         yesterdayDate,
         yesterdayClosePrices
       );
-      const yesterdayCostBasis = calculateCostBasisAtDate(transactionsUpToYesterday, yesterdayDate);
+      const yesterdayCostBasis = calculateCostBasisAtDate(transactionsUpToYesterday, yesterdayDate, symbolsWithPrices);
       
       if (yesterdayPortfolioValue > 0 && yesterdayCostBasis > 0) {
         // Insert at the beginning
@@ -292,12 +320,15 @@ export async function calculateHistoricalPortfolioValue(
       });
       
       if (transactionsUpToStart.length > 0) {
-        const portfolioValueAtStart = calculatePortfolioValueAtDate(
+        // IMPORTANT: Calculate value and cost basis consistently
+        // Only include symbols that have prices to avoid mismatch
+        const { value: portfolioValueAtStart, symbolsWithPrices } = calculatePortfolioValueAtDateWithSymbols(
           transactionsUpToStart,
           targetStartDate,
           firstAvailablePrices
         );
-        const costBasisAtStart = calculateCostBasisAtDate(transactionsUpToStart, targetStartDate);
+        // Calculate cost basis ONLY for symbols that have prices
+        const costBasisAtStart = calculateCostBasisAtDate(transactionsUpToStart, targetStartDate, symbolsWithPrices);
         
         if (portfolioValueAtStart >= 0 && costBasisAtStart > 0) {
           const targetStartDateStr = `${targetStartDate.getFullYear()}-${String(targetStartDate.getMonth() + 1).padStart(2, '0')}-${String(targetStartDate.getDate()).padStart(2, '0')}`;
@@ -326,8 +357,13 @@ export async function calculateHistoricalPortfolioValue(
     });
     
     if (transactionsUpToDate.length > 0) {
-      const portfolioValue = calculatePortfolioValueAtDate(transactionsUpToDate, targetDate, pricesAtDate);
-      const costBasis = calculateCostBasisAtDate(transactionsUpToDate, targetDate);
+      // Use consistent symbols for value and cost basis
+      const { value: portfolioValue, symbolsWithPrices } = calculatePortfolioValueAtDateWithSymbols(
+        transactionsUpToDate, 
+        targetDate, 
+        pricesAtDate
+      );
+      const costBasis = calculateCostBasisAtDate(transactionsUpToDate, targetDate, symbolsWithPrices);
       
       if (portfolioValue >= 0 && costBasis > 0) {
         portfolioHistory.push({

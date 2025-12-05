@@ -79,7 +79,12 @@ export function calculatePeriodPerformance(input: PerformanceInput): PeriodPerfo
   const startCostBasis = historicalData[0]?.volume || 0;
   const startDate = historicalData[0]?.date || '';
 
-  // Current unrealized gain
+  // Use ACTUAL current values from dashboard (always accurate)
+  // Historical data may have incomplete stocks, especially for intraday
+  const endValue = currentValue;
+  const endCostBasis = currentCostBasis;
+
+  // Current unrealized gain - use actual portfolio values
   const currentUnrealizedGain = currentValue - currentCostBasis;
 
   // Find first transaction date (excluding dividends)
@@ -105,8 +110,8 @@ export function calculatePeriodPerformance(input: PerformanceInput): PeriodPerfo
     // At moment of first purchase, unrealized was $0 (value = cost)
     // So total gain = current unrealized - 0 = current unrealized
     periodGain = currentUnrealizedGain;
-    periodGainPercent = currentCostBasis > 0 
-      ? (periodGain / currentCostBasis) * 100 
+    periodGainPercent = endCostBasis > 0 
+      ? (periodGain / endCostBasis) * 100 
       : 0;
   } else {
     // PERIOD: Gain is the change in unrealized during the period
@@ -115,8 +120,14 @@ export function calculatePeriodPerformance(input: PerformanceInput): PeriodPerfo
     // - So unrealized stays roughly the same (no artificial gain)
     const startUnrealizedGain = startValue - startCostBasis;
     periodGain = currentUnrealizedGain - startUnrealizedGain;
-    periodGainPercent = startValue > 0 
-      ? (periodGain / startValue) * 100 
+    
+    // SIMPLE MATH: Calculate percentage using ACTUAL current portfolio value
+    // startOfPeriodValue = actualCurrentValue - gain
+    // percentage = gain / startOfPeriodValue
+    // Use currentValue (from dashboard, always accurate) NOT endValue (from historical, might be incomplete)
+    const calculatedStartValue = currentValue - periodGain;
+    periodGainPercent = calculatedStartValue > 0 
+      ? (periodGain / calculatedStartValue) * 100 
       : 0;
   }
 
@@ -125,8 +136,8 @@ export function calculatePeriodPerformance(input: PerformanceInput): PeriodPerfo
     periodGainPercent,
     startValue,
     startCostBasis,
-    endValue: currentValue,
-    endCostBasis: currentCostBasis,
+    endValue,
+    endCostBasis,
     isAllTime,
   };
 }

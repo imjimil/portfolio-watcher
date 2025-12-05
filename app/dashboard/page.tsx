@@ -663,6 +663,19 @@ export default function Dashboard() {
               ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 && historicalData.length > 0 ? (
                 <SkeletonChartCard />
               ) : historicalData.length > 0 ? (
+                (() => {
+                  // Calculate performance ONCE and use it for both display and chart color
+                  const performance = activePortfolio ? calculatePeriodPerformance({
+                    historicalData,
+                    currentValue: activePortfolio.totalValue || 0,
+                    currentCostBasis: activePortfolio.totalCost || 0,
+                    transactions: activePortfolio.transactions || [],
+                    selectedPeriod: chartPeriod,
+                  }) : null;
+                  
+                  const isPositive = performance ? performance.periodGain >= 0 : true;
+                  
+                  return (
                 <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div>
@@ -675,39 +688,25 @@ export default function Dashboard() {
                         </div>
                       )}
                       {/* Period Gain/Loss */}
-                      {historicalData.length > 0 && activePortfolio && (
-                        (() => {
-                          const performance = calculatePeriodPerformance({
-                            historicalData,
-                            currentValue: activePortfolio.totalValue || 0,
-                            currentCostBasis: activePortfolio.totalCost || 0,
-                            transactions: activePortfolio.transactions || [],
-                            selectedPeriod: chartPeriod,
-                          });
-                          
-                          const isPositive = performance.periodGain >= 0;
-                          
-                          return (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className={`text-sm font-semibold tabular-nums ${
-                                isPositive
-                                  ? 'text-emerald-600 dark:text-emerald-400'
-                                  : 'text-red-500 dark:text-red-400'
-                              }`}>
-                                {isPositive ? '+' : ''}
-                                {formatCurrency(performance.periodGain)}
-                              </span>
-                              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full tabular-nums ${
-                                isPositive
-                                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                                  : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                              }`}>
-                                {isPositive ? '+' : ''}
-                                {performance.periodGainPercent.toFixed(2)}%
-                              </span>
-                            </div>
-                          );
-                        })()
+                      {performance && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-sm font-semibold tabular-nums ${
+                            isPositive
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-red-500 dark:text-red-400'
+                          }`}>
+                            {isPositive ? '+' : ''}
+                            {formatCurrency(performance.periodGain)}
+                          </span>
+                          <span className={`px-2 py-0.5 text-xs font-semibold rounded-full tabular-nums ${
+                            isPositive
+                              ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                          }`}>
+                            {isPositive ? '+' : ''}
+                            {performance.periodGainPercent.toFixed(2)}%
+                          </span>
+                        </div>
                       )}
                     </div>
                     {/* Period selector - Desktop */}
@@ -733,6 +732,7 @@ export default function Dashboard() {
                     currentValue={activePortfolio?.totalValue}
                     costBasis={activePortfolio?.totalCost}
                     transactions={activePortfolio?.transactions || []}
+                    periodGain={performance?.periodGain}
                   />
                   {/* Period selector - Mobile */}
                   <div className="flex sm:hidden gap-1 justify-center mt-4 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mx-auto w-fit">
@@ -751,74 +751,93 @@ export default function Dashboard() {
                     ))}
                   </div>
                 </div>
+                  );
+                })()
               ) : null}
 
               {/* Allocation Chart and Recent Transactions */}
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4">
                 {/* Allocation Chart */}
                 {loading ? (
                   <SkeletonChartCard />
                 ) : refreshing && holdings.length > 0 ? (
                   <SkeletonChartCard />
                 ) : holdings.length > 0 ? (
-                  <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-3 sm:p-5">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Allocation</p>
+                  <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4 sm:p-5">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">Allocation</p>
                     <AllocationChart holdings={holdings} />
                   </div>
                 ) : null}
 
-                {/* Recent Transactions Summary */}
+                {/* Recent Transactions Summary - Mobile only */}
                 {loading ? (
-                  <SkeletonTransactionCard />
+                  <div className="sm:hidden"><SkeletonTransactionCard /></div>
                 ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 ? (
-                  <SkeletonTransactionCard />
+                  <div className="sm:hidden"><SkeletonTransactionCard /></div>
                 ) : activePortfolio && activePortfolio.transactions.length > 0 ? (
-                  <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-3 sm:p-5">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Recent Activity</p>
-                <div className="space-y-2">
-                  {activePortfolio.transactions
-                    .slice(-3)
-                    .reverse()
-                    .map((transaction) => (
-                      <div
-                        key={transaction.id}
-                        className="flex items-center justify-between p-2.5 sm:p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl gap-2"
-                      >
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                          <div className="min-w-0">
-                            <div className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate">{transaction.symbol}</div>
-                            <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                              {(() => {
-                                const [year, month, day] = transaction.date.split('-').map(Number);
-                                return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                              })()}
+                  <div className="sm:hidden bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-4">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">Recent Activity</p>
+                    <div className="space-y-2.5">
+                      {activePortfolio.transactions
+                        .slice(-3)
+                        .reverse()
+                        .map((transaction) => (
+                          <div
+                            key={transaction.id}
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl"
+                          >
+                            <div className="flex items-center gap-3">
+                              {/* Transaction type icon */}
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                transaction.type === 'buy'
+                                  ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                                  : transaction.type === 'sell'
+                                  ? 'bg-red-100 dark:bg-red-900/30'
+                                  : 'bg-blue-100 dark:bg-blue-900/30'
+                              }`}>
+                                <span className={`text-xs font-bold ${
+                                  transaction.type === 'buy'
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : transaction.type === 'sell'
+                                    ? 'text-red-500 dark:text-red-400'
+                                    : 'text-blue-600 dark:text-blue-400'
+                                }`}>
+                                  {transaction.type === 'buy' ? '+' : transaction.type === 'sell' ? '−' : '$'}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {transaction.symbol}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {(() => {
+                                    const [year, month, day] = transaction.date.split('-').map(Number);
+                                    return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                  })()}
+                                  {' · '}
+                                  <span className={
+                                    transaction.type === 'buy'
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : transaction.type === 'sell'
+                                      ? 'text-red-500 dark:text-red-400'
+                                      : 'text-blue-600 dark:text-blue-400'
+                                  }>
+                                    {transaction.type.toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
+                                {formatCurrency(transaction.quantity * transaction.price)}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+                                {transaction.quantity} × {formatCurrency(transaction.price)}
+                              </div>
                             </div>
                           </div>
-                          <div className="text-[10px] sm:text-xs flex-shrink-0">
-                            <span
-                              className={`px-1.5 sm:px-2 py-0.5 rounded-md font-medium ${
-                                transaction.type === 'buy'
-                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                  : transaction.type === 'sell'
-                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                              }`}
-                            >
-                              {transaction.type.toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-[10px] sm:text-xs font-semibold text-gray-900 dark:text-white tabular-nums">
-                            {formatCurrency(transaction.quantity * transaction.price)}
-                          </div>
-                          <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-                            {transaction.quantity} × {formatCurrency(transaction.price)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
                   </div>
                 ) : null}
               </div>

@@ -21,8 +21,9 @@ export function formatNumber(value: number, decimals: number = 2): string {
   }).format(value);
 }
 
-export function formatPercent(value: number, decimals: number = 2): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(decimals)}%`;
+export function formatPercent(value: number, decimals: number = 2, includeSign: boolean = false): string {
+  const sign = includeSign && value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(decimals)}%`;
 }
 
 export function formatLargeNumber(value: number): string {

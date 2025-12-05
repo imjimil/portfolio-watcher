@@ -5,13 +5,17 @@ import { HistoricalData } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 
 // Custom tooltip component
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, isIntraday, startValue }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const value = data.value;
     const costBasis = data.costBasis || 0;
-    const gainLoss = value - costBasis;
-    const gainLossPercent = costBasis > 0 ? (gainLoss / costBasis) * 100 : 0;
+    
+    // For intraday, calculate change from start of period (more meaningful)
+    // For other periods, show unrealized gain
+    const gainLoss = isIntraday ? (value - startValue) : (value - costBasis);
+    const baseValue = isIntraday ? startValue : costBasis;
+    const gainLossPercent = baseValue > 0 ? (gainLoss / baseValue) * 100 : 0;
     
     const isPositive = gainLoss >= 0;
     
@@ -56,9 +60,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           </p>
         </div>
         <div className="mt-1 space-y-0.5">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Cost Basis: {formatCurrency(costBasis)}
-          </p>
+          {!isIntraday && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Cost Basis: {formatCurrency(costBasis)}
+            </p>
+          )}
           <p className={`text-xs font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             {isPositive ? '+' : ''}{formatCurrency(gainLoss)} ({isPositive ? '+' : ''}{gainLossPercent.toFixed(2)}%)
           </p>
@@ -76,6 +82,7 @@ interface PortfolioChartProps {
   currentValue?: number;
   costBasis?: number;
   transactions?: any[];
+  periodGain?: number; // The actual calculated gain/loss for this period
 }
 
 export default function PortfolioChart({ 
@@ -84,6 +91,7 @@ export default function PortfolioChart({
   period = '1m',
   currentValue,
   costBasis,
+  periodGain,
 }: PortfolioChartProps) {
   if (data.length === 0) {
     return (
@@ -140,15 +148,18 @@ export default function PortfolioChart({
     };
   });
 
-  // Calculate overall gain/loss
+  // Get start value for reference line
   const startValue = chartData[0]?.value || 0;
-  const startCostBasis = chartData[0]?.costBasis || 0;
-  const endValue = chartData[chartData.length - 1]?.value || 0;
-  const endCostBasis = chartData[chartData.length - 1]?.costBasis || 0;
   
-  // Determine if positive or negative overall
-  const overallGainLoss = endValue - endCostBasis;
-  const isPositive = overallGainLoss >= 0;
+  // Check if this is intraday data
+  const isIntraday = period === '1d';
+  
+  // Determine if positive or negative based on the ACTUAL period gain/loss
+  // This matches the displayed gain/loss text (which uses unrealized change calculation)
+  // If periodGain is provided, use it; otherwise fall back to visual change
+  const isPositive = periodGain !== undefined 
+    ? periodGain >= 0 
+    : (chartData[chartData.length - 1]?.value || 0) >= startValue;
   
   // Calculate Y-axis domain
   const values = chartData.map(d => d.value);
@@ -185,7 +196,7 @@ export default function PortfolioChart({
             hide={true}
             domain={[minValue - padding, maxValue + padding]}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip isIntraday={isIntraday} startValue={startValue} />} />
           {startValue > 0 && (
             <ReferenceLine 
               y={startValue} 

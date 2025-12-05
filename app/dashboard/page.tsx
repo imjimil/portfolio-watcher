@@ -627,26 +627,61 @@ export default function Dashboard() {
                           {formatCurrency(activePortfolio.totalValue)}
                         </div>
                       )}
-                      {/* Total Gain/Loss */}
-                      {activePortfolio && activePortfolio.totalCost > 0 && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-sm sm:text-base font-medium ${
-                            activePortfolio.totalGainLoss >= 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
-                            {activePortfolio.totalGainLoss >= 0 ? '+' : ''}
-                            {formatCurrency(activePortfolio.totalGainLoss)}
-                          </span>
-                          <span className={`text-sm sm:text-base font-medium ${
-                            activePortfolio.totalGainLoss >= 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
-                            ({activePortfolio.totalGainLoss >= 0 ? '+' : ''}
-                            {activePortfolio.totalGainLossPercent.toFixed(2)}%)
-                          </span>
-                        </div>
+                      {/* Period Gain/Loss */}
+                      {historicalData.length > 0 && activePortfolio && (
+                        (() => {
+                          // Start of period values
+                          const startValue = historicalData[0]?.price || 0;
+                          const startCostBasis = historicalData[0]?.volume || 0;
+                          const startDate = historicalData[0]?.date || '';
+                          
+                          // Current values
+                          const currentValue = activePortfolio.totalValue || 0;
+                          const currentCostBasis = activePortfolio.totalCost || 0;
+                          const currentUnrealizedGain = currentValue - currentCostBasis;
+                          
+                          // Find first transaction date
+                          const firstTransaction = activePortfolio.transactions
+                            ?.filter((t: any) => t.type !== 'dividend')
+                            ?.sort((a: any, b: any) => a.date.localeCompare(b.date))[0];
+                          const firstTransactionDate = firstTransaction?.date || '';
+                          
+                          // Check if this is effectively "all time"
+                          const startDateOnly = startDate.includes(' ') ? startDate.split(' ')[0] : startDate;
+                          const isAllTime = chartPeriod === 'all' || startDateOnly === firstTransactionDate || startDateOnly <= firstTransactionDate;
+                          
+                          // At purchase moment, unrealized = 0, so for "all time" we use 0 as start
+                          const startUnrealizedGain = isAllTime ? 0 : (startValue - startCostBasis);
+                          
+                          // Universal formula: Period Gain = Current Unrealized - Start Unrealized
+                          const periodGain = currentUnrealizedGain - startUnrealizedGain;
+                          const periodGainPercent = isAllTime
+                            ? (currentCostBasis > 0 ? (periodGain / currentCostBasis) * 100 : 0)
+                            : (startValue > 0 ? (periodGain / startValue) * 100 : 0);
+                          
+                          const isPositive = periodGain >= 0;
+                          
+                          return (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`text-sm sm:text-base font-medium ${
+                                isPositive
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {isPositive ? '+' : ''}
+                                {formatCurrency(periodGain)}
+                              </span>
+                              <span className={`text-sm sm:text-base font-medium ${
+                                isPositive
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                ({isPositive ? '+' : ''}
+                                {periodGainPercent.toFixed(2)}%)
+                              </span>
+                            </div>
+                          );
+                        })()
                       )}
                     </div>
                     {/* Period selector - hidden on mobile, shown on desktop */}

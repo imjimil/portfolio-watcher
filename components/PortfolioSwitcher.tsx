@@ -39,16 +39,16 @@ export default function PortfolioSwitcher({
     <div className="relative portfolio-switcher">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-0 py-0 bg-transparent border-none hover:opacity-80 transition-opacity text-left"
+        className="flex items-center gap-1 sm:gap-2 px-0 py-0 bg-transparent border-none hover:opacity-80 transition-opacity text-left"
       >
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <span className="truncate">{activePortfolio?.name || 'My Portfolio'}</span>
-          <ChevronDown className={`h-5 w-5 sm:h-6 sm:w-6 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <h2 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1 sm:gap-2">
+          <span className="truncate max-w-[140px] sm:max-w-none">{activePortfolio?.name || 'My Portfolio'}</span>
+          <ChevronDown className={`h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
         </h2>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 max-h-96 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-2 w-72 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 max-h-96 overflow-y-auto">
           <div className="p-2">
             <button
               onClick={() => {

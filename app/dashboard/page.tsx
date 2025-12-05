@@ -439,17 +439,16 @@ export default function Dashboard() {
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
         <>
           {/* Portfolio Header */}
-          <div className="mb-6 sm:mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
-              <div className="flex-1 min-w-0">
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              <div className="min-w-0">
                 {loading ? (
                   <div className="animate-pulse">
-                    <div className="h-7 sm:h-8 lg:h-9 w-48 sm:w-64 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
-                    <div className="hidden sm:block h-4 sm:h-5 w-40 sm:w-56 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    <div className="h-6 sm:h-8 lg:h-9 w-32 sm:w-64 bg-gray-200 dark:bg-gray-700 rounded"></div>
                   </div>
                 ) : (
                   <>
-                    {!loading && portfolios.length > 0 ? (
+                    {portfolios.length > 0 ? (
                       <PortfolioSwitcher
                         portfolios={portfolios}
                         activePortfolioId={activePortfolio?.id || null}
@@ -457,45 +456,46 @@ export default function Dashboard() {
                         onCreateNew={() => setIsCreatePortfolioModalOpen(true)}
                       />
                     ) : (
-                      <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                      <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 truncate">
                         {activePortfolio?.name || 'My Portfolio'}
                       </h2>
                     )}
-                    <p className="hidden sm:block text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
-                      {activePortfolio?.description || 'Track your investments'}
-                    </p>
                   </>
                 )}
               </div>
-              <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                 {!loading && activePortfolio && (
                   <button
                     onClick={() => {
                       const csv = exportPortfolioToCSV(activePortfolio);
                       downloadCSV(csv, `portfolio-${activePortfolio.name}-${new Date().toISOString().split('T')[0]}.csv`);
                     }}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="flex items-center justify-center p-2 sm:px-4 sm:py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     <Download className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="hidden sm:inline">Export</span>
+                    <span className="hidden sm:inline sm:ml-2">Export</span>
                   </button>
                 )}
                 <button
                   onClick={() => setIsModalOpen(true)}
                   disabled={loading}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-1 px-2.5 sm:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="hidden sm:inline">Add Transaction</span>
                   <span className="sm:hidden">Add</span>
+                  <span className="hidden sm:inline">Add Transaction</span>
                 </button>
               </div>
             </div>
-
+            {!loading && activePortfolio?.description && (
+              <p className="hidden sm:block text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {activePortfolio.description}
+              </p>
+            )}
             {refreshing && (
-              <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                <Activity className="h-4 w-4 animate-spin" />
-                Refreshing data...
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-2">
+                <Activity className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                Refreshing...
               </div>
             )}
           </div>
@@ -504,21 +504,21 @@ export default function Dashboard() {
           {loading ? (
             <SkeletonCollectiveStats />
           ) : portfolios.length > 1 && (
-            <div className="mb-6 sm:mb-8 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 sm:mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-3 sm:p-5">
+              <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
                 <div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">
+                  <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">
                     All Portfolios Combined
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     {portfolios.length} portfolios
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                  <div className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
                     {formatCurrency(collectiveStats.totalValue)}
                   </div>
-                  <div className={`text-sm sm:text-base font-medium ${
+                  <div className={`text-xs sm:text-sm font-medium ${
                     collectiveGainLossPercent >= 0
                       ? 'text-green-600 dark:text-green-400'
                       : 'text-red-600 dark:text-red-400'
@@ -526,7 +526,7 @@ export default function Dashboard() {
                     {collectiveGainLossPercent >= 0 ? '+' : ''}
                     {collectiveGainLossPercent.toFixed(2)}%
                   </div>
-                  <div className={`text-xs sm:text-sm ${
+                  <div className={`text-xs ${
                     collectiveStats.totalGainLoss >= 0
                       ? 'text-green-600 dark:text-green-400'
                       : 'text-red-600 dark:text-red-400'
@@ -536,7 +536,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div>
                   <div className="text-gray-600 dark:text-gray-400">Total Cost</div>
                   <div className="font-semibold text-gray-900 dark:text-white">
@@ -571,19 +571,19 @@ export default function Dashboard() {
 
           {/* Stats Grid */}
           {loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : portfolioStats ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
               <StatCard
                 title="Total Value"
                 value={portfolioStats.totalValue}

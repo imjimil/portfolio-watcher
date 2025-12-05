@@ -35,26 +35,26 @@ export default function StatCard({
   return (
     <div
       className={cn(
-        'rounded-lg border bg-white dark:bg-gray-800 p-3 sm:p-4 lg:p-6 shadow-sm transition-shadow hover:shadow-md',
+        'rounded-lg border bg-white dark:bg-gray-800 p-2.5 sm:p-4 lg:p-5 shadow-sm transition-shadow hover:shadow-md',
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-1.5 sm:gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">
+          <p className="text-[10px] sm:text-xs lg:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">
             {title}
           </p>
-          <p className="mt-1 sm:mt-2 text-lg sm:text-xl lg:text-2xl font-bold truncate">{formatValue()}</p>
+          <p className="mt-0.5 sm:mt-1.5 text-base sm:text-xl lg:text-2xl font-bold truncate">{formatValue()}</p>
           {(change !== undefined || changePercent !== undefined) && (
-            <div className="mt-1 sm:mt-2 flex items-center gap-1 sm:gap-2 flex-wrap">
+            <div className="mt-0.5 sm:mt-1.5 flex items-center gap-1 flex-wrap">
               {change !== undefined && (
-                <span className={cn('text-xs sm:text-sm font-medium', getColorForValue(change))}>
+                <span className={cn('text-[10px] sm:text-xs lg:text-sm font-medium', getColorForValue(change))}>
                   {change >= 0 ? '+' : ''}
                   {formatCurrency(change)}
                 </span>
               )}
               {changePercent !== undefined && (
-                <span className={cn('text-xs sm:text-sm font-medium', getColorForValue(changePercent))}>
+                <span className={cn('text-[10px] sm:text-xs lg:text-sm font-medium', getColorForValue(changePercent))}>
                   {formatPercent(changePercent)}
                 </span>
               )}
@@ -62,8 +62,8 @@ export default function StatCard({
           )}
         </div>
         {Icon && (
-          <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-2 sm:p-2.5 lg:p-3 flex-shrink-0">
-            <Icon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-600 dark:text-blue-400" />
+          <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-1.5 sm:p-2.5 lg:p-3 flex-shrink-0">
+            <Icon className="h-3.5 w-3.5 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-600 dark:text-blue-400" />
           </div>
         )}
       </div>

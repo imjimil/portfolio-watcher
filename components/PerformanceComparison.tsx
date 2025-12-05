@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Portfolio, Holding } from '@/types';
+import { Portfolio, Holding, Transaction } from '@/types';
 import { getHistoricalData } from '@/lib/stockService';
 import { calculateHistoricalPortfolioValue } from '@/lib/historicalPortfolio';
 import { formatPercent, getColorForValue, cn, parseLocalDate } from '@/lib/utils';
@@ -76,22 +76,44 @@ export default function PerformanceComparison({ portfolio, holdings }: Performan
         const portfolioPeriod = portfolioPeriodMap[period] || '1m';
         const portfolioHistory = await calculateHistoricalPortfolioValue(portfolio.transactions, portfolioPeriod);
 
-        // Calculate portfolio return
-        // calculateHistoricalPortfolioValue returns data sorted oldest first (line 196-207 in historicalPortfolio.ts)
+        // Calculate portfolio return using change in unrealized gain
+        // This properly handles cash flows (new investments during the period)
+        // portfolioHistory: price = portfolio value, volume = cost basis at that time
         let portfolioReturn = 0;
-        if (portfolioHistory.length >= 2) {
-          // First data point is oldest (start), last is newest (end)
-          const portfolioStart = portfolioHistory[0].price;
-          const portfolioEnd = portfolioHistory[portfolioHistory.length - 1].price;
-          if (portfolioStart > 0 && portfolioStart !== portfolioEnd) {
-            portfolioReturn = ((portfolioEnd - portfolioStart) / portfolioStart) * 100;
-          }
-        } else if (portfolioHistory.length === 1) {
-          // Only one data point - compare to cost basis
-          const portfolioStart = portfolio.totalCost;
-          const portfolioEnd = portfolioHistory[0].price;
-          if (portfolioStart > 0) {
-            portfolioReturn = ((portfolioEnd - portfolioStart) / portfolioStart) * 100;
+        
+        if (portfolioHistory.length >= 1) {
+          // Get start of period data
+          const startValue = portfolioHistory[0].price;
+          const startCostBasis = portfolioHistory[0].volume || 0;
+          const startDate = portfolioHistory[0].date;
+          
+          // Get current values
+          const endValue = portfolio.totalValue;
+          const endCostBasis = portfolio.totalCost;
+          const currentUnrealizedGain = endValue - endCostBasis;
+          
+          // Find first transaction date to check if this is effectively "all time"
+          const firstTransaction = portfolio.transactions
+            ?.filter((t: Transaction) => t.type !== 'dividend')
+            ?.sort((a: Transaction, b: Transaction) => a.date.localeCompare(b.date))[0];
+          const firstTransactionDate = firstTransaction?.date || '';
+          
+          // Check if this is effectively "all time"
+          const startDateOnly = startDate.includes(' ') ? startDate.split(' ')[0] : startDate;
+          const isAllTime = period === 'ALL' || startDateOnly === firstTransactionDate || startDateOnly <= firstTransactionDate;
+          
+          if (isAllTime) {
+            // ALL TIME: Return is simply current unrealized / cost basis
+            if (endCostBasis > 0) {
+              portfolioReturn = (currentUnrealizedGain / endCostBasis) * 100;
+            }
+          } else {
+            // PERIOD: Return is change in unrealized gain / start value
+            const startUnrealizedGain = startValue - startCostBasis;
+            const periodGain = currentUnrealizedGain - startUnrealizedGain;
+            if (startValue > 0) {
+              portfolioReturn = (periodGain / startValue) * 100;
+            }
           }
         } else {
           // Fallback to current gain/loss

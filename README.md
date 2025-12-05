@@ -1,59 +1,122 @@
-# Advanced Stock Portfolio Tracker 📈
+# Portfolio Watcher
 
-A comprehensive, feature-rich stock portfolio tracking application built with Next.js, TypeScript, and Tailwind CSS. Perfect for showcasing your full-stack development skills in your portfolio!
+A stock portfolio tracking app I built to manage my investments. It tracks multiple portfolios, calculates gains/losses, and gives you a clean view of how your stocks are performing.
 
-## ✨ Features
+**Live Demo:** [https://portfolio-watcher-lemon.vercel.app/](https://portfolio-watcher-lemon.vercel.app/)
 
-### Core Features
-- ✅ **Real-time Stock Price Tracking** - Get up-to-date stock prices with automatic updates
-- ✅ **Portfolio Management** - Track multiple portfolios with detailed holdings
-- ✅ **Transaction History** - Complete buy/sell/dividend transaction tracking
-- ✅ **Advanced Analytics** - Comprehensive performance metrics and ROI calculations
-- ✅ **Interactive Charts** - Beautiful visualizations with Recharts
-- ✅ **Watchlist** - Monitor stocks without adding to portfolio
-- ✅ **Gain/Loss Calculations** - Real-time profit/loss tracking with percentages
-- ✅ **Portfolio Allocation** - Visual pie charts showing asset distribution
-- ✅ **Dark Mode** - Beautiful dark theme with smooth transitions
-- ✅ **Responsive Design** - Works perfectly on desktop, tablet, and mobile
+## Screenshots
 
-### Advanced Features
-- 📊 **Portfolio Performance Charts** - Historical price trends
-- 📈 **Allocation Visualization** - See your portfolio distribution at a glance
-- 📤 **CSV Export** - Export portfolio and transaction data
-- 🔍 **Stock Search** - Quick search and add stocks to watchlist
-- 💾 **Local Storage** - Data persists in browser (easily upgradeable to database)
-- 🎨 **Modern UI/UX** - Clean, professional interface
-- ⚡ **Fast Performance** - Optimized with Next.js 14 App Router
+![Landing Page](screenshots/landing.png)
+*Landing page with animated background and feature highlights*
 
-## 🚀 Tech Stack
+![Dashboard](screenshots/dashboard.png)
+*Main dashboard showing portfolio overview, performance chart, and stats*
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **State Management**: React Hooks + Local Storage
+![Holdings](screenshots/holdings.png)
+*Holdings page with detailed stock information and allocation chart*
 
-## 📦 Getting Started
+![Watchlist](screenshots/watchlist.png)
+*Watchlist with real-time prices and sparklines*
+
+![Transactions](screenshots/transactions.png)
+*Transaction history with filtering and bulk operations*
+
+## What it does
+
+Track your stock portfolios with real-time prices, transaction history, and performance analytics. You can create multiple portfolios, import transactions from CSV (Yahoo Finance format), set price alerts, and monitor stocks on a watchlist.
+
+The app uses Yahoo Finance for stock data (no API key needed), stores everything in Supabase, and has a responsive design that works well on mobile and desktop.
+
+## Features
+
+**Portfolio Management**
+- Create and manage multiple portfolios
+- Track buy/sell/dividend transactions
+- Automatic holding calculations
+- CSV import from Yahoo Finance exports
+- Real-time portfolio value updates
+
+**Analytics & Charts**
+- Portfolio performance over time (1D, 5D, 1M, 6M, YTD, All)
+- Gain/loss calculations with percentages
+- Asset allocation pie charts
+- Cost basis tracking
+- Period-based performance comparisons
+
+**Watchlist**
+- Monitor stocks without adding to portfolio
+- Real-time price updates with sparklines
+- Price alerts (above/below thresholds)
+- Target price tracking
+- Quick add/remove with undo
+
+**Transactions**
+- Full transaction history with filtering
+- Edit and delete transactions
+- Bulk operations
+- Chronological sorting
+- Export to CSV
+
+**User Experience**
+- Dark mode
+- Responsive design (mobile-first)
+- Skeleton loading states
+- Toast notifications with undo
+- Smooth animations and transitions
+
+## Tech Stack
+
+- **Next.js 14** (App Router) - React framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Supabase** - Database and authentication
+- **Recharts** - Data visualization
+- **Lucide React** - Icons
+
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
 
-### Installation
+- Node.js 18 or higher
+- A Supabase account (free tier works fine)
 
-1. **Install dependencies:**
+### Setup
+
+1. Clone the repo:
+```bash
+git clone <your-repo-url>
+cd portfolio-watcher
+```
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-2. **Run the development server:**
+3. Set up environment variables:
+Create a `.env.local` file in the root directory:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+LOGO_DEV_API_KEY=your_logo_dev_api_key
+```
+
+4. Set up the database:
+Run the SQL schema from `supabase/schema.sql` in your Supabase SQL editor. This creates the tables for portfolios, transactions, watchlist, and alerts.
+
+5. Configure Supabase Auth:
+In your Supabase dashboard, set up email authentication and configure the redirect URLs:
+- `http://localhost:3000/auth/callback` (development)
+- `https://yourdomain.com/auth/callback` (production)
+- `http://localhost:3000/reset-password` (password reset)
+- `https://yourdomain.com/reset-password` (password reset)
+
+6. Run the dev server:
 ```bash
 npm run dev
 ```
 
-3. **Open your browser:**
-Navigate to [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Building for Production
 
@@ -62,206 +125,81 @@ npm run build
 npm start
 ```
 
-## 🔌 API Integration
+For deployment, check out `DEPLOYMENT.md` for detailed Vercel setup instructions.
 
-This project uses **Yahoo Finance** public API endpoints for real-time stock data. No API key required! The app includes a production-grade implementation with smart caching and error handling.
+## How it works
 
-### Yahoo Finance Integration
+**Stock Data**
+The app fetches stock prices from Yahoo Finance's public API endpoints. No API key required. Data is cached client-side to reduce API calls, and there's smart cache invalidation to keep prices fresh.
 
-**No setup required!** The app uses Yahoo Finance's public query endpoints:
-- Stock search: `/v1/finance/search`
-- Real-time quotes: `/v8/finance/chart`
-- Historical data: `/v8/finance/chart` with date ranges
+**Data Storage**
+Everything is stored in Supabase - portfolios, transactions, watchlist items, and user alerts. The app syncs transactions to keep the database in sync with client state.
 
-**Features:**
-- ✅ No API key needed - completely free
-- ✅ No rate limits (within reasonable usage)
-- ✅ Smart caching (1 min for quotes, 5 min for search)
-- ✅ Production-grade error handling
-- ✅ Optimized API usage (1 call per search, 1 call per stock lookup)
-- ✅ Fast and reliable data
+**Calculations**
+Portfolio values are calculated by:
+1. Fetching current prices for all holdings
+2. Calculating total cost basis from transactions
+3. Computing unrealized gains/losses
+4. Tracking performance over different time periods
 
-## 📁 Project Structure
-
-```
-├── app/
-│   ├── layout.tsx          # Root layout
-│   ├── page.tsx            # Main dashboard
-│   └── globals.css         # Global styles
-├── components/
-│   ├── Header.tsx          # App header with theme toggle
-│   ├── StatCard.tsx        # Statistics display cards
-│   ├── HoldingsTable.tsx   # Portfolio holdings table
-│   ├── PortfolioChart.tsx # Performance charts
-│   ├── AllocationChart.tsx # Pie chart for allocation
-│   ├── Watchlist.tsx       # Watchlist component
-│   ├── TransactionHistory.tsx # Transaction table
-│   ├── AddTransactionModal.tsx # Add transaction form
-│   └── ThemeProvider.tsx   # Dark mode provider
-├── lib/
-│   ├── stockService.ts     # Stock data fetching (mock/API)
-│   ├── storage.ts         # Local storage utilities
-│   ├── utils.ts           # Helper functions
-│   └── export.ts          # CSV export functionality
-├── types/
-│   └── index.ts           # TypeScript type definitions
-└── public/                # Static assets
-```
-
-## 🎯 Key Features Explained
-
-### Portfolio Management
-- Add buy/sell/dividend transactions
-- Automatic holding calculations (FIFO method)
-- Real-time portfolio value updates
-- Multiple portfolio support (ready for expansion)
-
-### Analytics Dashboard
-- **Total Value**: Current market value of all holdings
-- **Total Cost**: Your investment cost basis
-- **Gain/Loss**: Profit or loss in dollars and percentage
-- **Day Change**: How your portfolio moved today
-
-### Watchlist
-- Track stocks without owning them
-- Real-time price updates
-- Quick add/remove functionality
-
-### Data Export
-- Export portfolio holdings to CSV
-- Export transaction history to CSV
-- Perfect for tax reporting or analysis
-
-## 🎨 Customization
-
-### Adding Real API Integration
-
-Replace the mock functions in `lib/stockService.ts`:
-
-```typescript
-export async function getStockData(symbol: string): Promise<Stock | null> {
-  const response = await fetch(
-    `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY}`
-  );
-  const data = await response.json();
-  // Transform API response to Stock type
-  return transformToStock(data);
-}
-```
-
-### Styling
-- Modify `tailwind.config.ts` for theme customization
-- Update colors in `app/globals.css`
-- All components use Tailwind utility classes
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-1. Push to GitHub
-2. Import project in Vercel
-3. Deploy automatically
-
-### Other Platforms
-- **Netlify**: Works great with Next.js
-- **AWS Amplify**: Full-stack deployment
-- **Railway**: Simple deployment
-
-## 📝 Future Enhancements
-
-Ideas for making this even more impressive:
-
-- [ ] Multiple portfolio support with switching
-- [ ] Price alerts and notifications
-- [ ] Stock comparison tool
-- [ ] News integration
-- [ ] Technical indicators (RSI, MACD, etc.)
-- [ ] Backend API with database (PostgreSQL/MongoDB)
-- [ ] User authentication
-- [ ] Social features (share portfolios)
-- [ ] Mobile app (React Native)
-- [ ] Advanced filtering and sorting
-
-## 🤝 Contributing
-
-This is a portfolio project, but feel free to fork and enhance!
-
-## 📄 License
-
-MIT License - feel free to use this in your portfolio!
-
-## 💡 Portfolio Tips
-
-When showcasing this project:
-
-1. **Highlight the Tech Stack** - Next.js 14, TypeScript, Tailwind
-2. **Showcase Features** - Emphasize the advanced analytics and charts
-3. **Discuss Architecture** - Explain component structure and data flow
-4. **API Integration** - Mention how easy it is to swap mock data for real APIs
-5. **Responsive Design** - Show it works on all devices
-6. **Performance** - Fast loading, optimized code
-
-## 🎓 Learning Outcomes
-
-This project demonstrates:
-- ✅ Modern React patterns (Hooks, Context)
-- ✅ TypeScript for type safety
-- ✅ Next.js App Router
-- ✅ Data visualization
-- ✅ State management
-- ✅ Local storage persistence
-- ✅ Responsive design
-- ✅ Dark mode implementation
-- ✅ CSV export functionality
-- ✅ Complex calculations and data processing
-
----
-
-**Built with ❤️ for your portfolio**
-
-## Tech Stack
-
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Charts**: Recharts
-- **Icons**: Lucide React
-
-## Getting Started
-
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Run the development server:
-```bash
-npm run dev
-```
-
-3. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-## API Integration
-
-This project uses **Yahoo Finance** public API endpoints - no API key required!
-
-The app automatically fetches:
-- Real-time stock quotes
-- Historical price data
-- Stock search results
-
-No configuration needed - just start using it!
+Historical portfolio values are calculated by reconstructing the portfolio at different points in time using transaction history and historical price data.
 
 ## Project Structure
 
 ```
-├── app/              # Next.js app directory
-├── components/       # React components
-├── lib/             # Utilities and helpers
-├── types/           # TypeScript type definitions
-└── public/          # Static assets
+app/
+  ├── api/              # API routes for stock data
+  ├── auth/             # Authentication pages
+  ├── dashboard/        # Main dashboard
+  ├── holdings/         # Holdings page
+  ├── transactions/     # Transaction history
+  ├── watchlist/        # Watchlist page
+  └── profile/          # User profile
+
+components/
+  ├── skeletons/        # Loading state components
+  └── ...               # Various UI components
+
+lib/
+  ├── stockService.ts   # Stock data fetching
+  ├── storage.ts        # Supabase operations
+  ├── portfolioCalculator.ts  # Portfolio calculations
+  ├── portfolioPerformance.ts # Performance metrics
+  └── historicalPortfolio.ts  # Historical data
+
+supabase/
+  ├── schema.sql        # Database schema
+  └── migrations/       # Database migrations
 ```
+
+## Key Implementation Details
+
+**Transaction Syncing**
+When you delete or modify transactions, the app uses a sync function that compares the current state with the database and only makes the necessary changes (insert/update/delete). This prevents unnecessary database calls.
+
+**Caching Strategy**
+Stock prices are cached with different TTLs:
+- Real-time quotes: 1 minute
+- Search results: 5 minutes
+- Historical data: varies by period
+
+The cache is invalidated when data becomes stale, and you can force a refresh from the UI.
+
+**Performance Optimizations**
+- Memoized calculations for expensive operations
+- Debounced search inputs
+- Lazy loading for charts
+- Optimistic UI updates
+- Client-side caching to reduce API calls
+
+
+## Notes
+
+- Yahoo Finance API is free but rate limits can apply with heavy usage
+- The app handles missing data gracefully (e.g., when markets are closed)
+- Historical data uses forward-fill for missing intraday prices to prevent chart gaps
+- All calculations use proper date handling to avoid timezone issues
 
 ## License
 
 MIT
-

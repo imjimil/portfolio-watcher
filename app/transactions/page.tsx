@@ -7,6 +7,8 @@ import TransactionHistory from '@/components/TransactionHistory';
 import AddTransactionModal from '@/components/AddTransactionModal';
 import PortfolioSwitcher from '@/components/PortfolioSwitcher';
 import CreatePortfolioModal from '@/components/CreatePortfolioModal';
+import DeleteTransactionModal from '@/components/DeleteTransactionModal';
+import DeleteToast from '@/components/DeleteToast';
 import { Portfolio, Transaction, Holding, Stock } from '@/types';
 import { getPortfolios, getActivePortfolioId, getPortfolio, savePortfolio, updatePortfolioStats, setActivePortfolioId } from '@/lib/storage';
 import { getMultipleStocks, calculateHoldings } from '@/lib/stockService';
@@ -37,6 +39,10 @@ export default function TransactionsPage() {
   const [isCreatePortfolioModalOpen, setIsCreatePortfolioModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [deletedTransaction, setDeletedTransaction] = useState<Transaction | null>(null);
+  const [deletedTransactionPortfolio, setDeletedTransactionPortfolio] = useState<Portfolio | null>(null);
   
   // Filter and search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -390,12 +396,28 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleDeleteTransaction = async (transactionId: string) => {
+  const handleDeleteTransaction = (transactionId: string) => {
     if (!activePortfolio) return;
+
+    // Find the transaction to show details in confirmation
+    const transaction = activePortfolio.transactions.find(t => t.id === transactionId);
+    if (!transaction) return;
+
+    // Open confirmation modal
+    setTransactionToDelete(transaction);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (!activePortfolio || !transactionToDelete) return;
+
+    // Store deleted transaction for undo
+    setDeletedTransaction(transactionToDelete);
+    setDeletedTransactionPortfolio(activePortfolio);
 
     const updatedPortfolio: Portfolio = {
       ...activePortfolio,
-      transactions: activePortfolio.transactions.filter(t => t.id !== transactionId),
+      transactions: activePortfolio.transactions.filter(t => t.id !== transactionToDelete.id),
       updatedAt: new Date().toISOString(),
     };
 
@@ -411,9 +433,63 @@ export default function TransactionsPage() {
     lastTransactionHashRef.current = '';
     setSelectedTransactions(prev => {
       const next = new Set(prev);
-      next.delete(transactionId);
+      next.delete(transactionToDelete.id);
       return next;
     });
+
+    // Close modal
+    setDeleteModalOpen(false);
+    setTransactionToDelete(null);
+  };
+
+  const handleUndoDelete = async () => {
+    if (!deletedTransaction) return;
+
+    // Get the current portfolio state (not the snapshot)
+    const currentPortfolio = portfolios.find(p => p.id === deletedTransactionPortfolio?.id) || activePortfolio;
+    if (!currentPortfolio) {
+      setDeletedTransaction(null);
+      setDeletedTransactionPortfolio(null);
+      return;
+    }
+
+    // Check if transaction already exists (prevent duplicates)
+    const transactionExists = currentPortfolio.transactions.some(t => t.id === deletedTransaction.id);
+    if (transactionExists) {
+      // Transaction already exists, just clear undo state
+      setDeletedTransaction(null);
+      setDeletedTransactionPortfolio(null);
+      return;
+    }
+
+    // Insert transaction in chronological order (sorted by date)
+    const updatedTransactions = [...currentPortfolio.transactions, deletedTransaction].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      // If same date, maintain insertion order for transactions on the same day
+      return 0;
+    });
+
+    const updatedPortfolio: Portfolio = {
+      ...currentPortfolio,
+      transactions: updatedTransactions,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await savePortfolio(updatedPortfolio);
+    setActivePortfolio(updatedPortfolio);
+    setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
+    lastTransactionHashRef.current = '';
+
+    // Clear undo state
+    setDeletedTransaction(null);
+    setDeletedTransactionPortfolio(null);
+  };
+
+  const handleCloseToast = () => {
+    setDeletedTransaction(null);
+    setDeletedTransactionPortfolio(null);
   };
 
   const handleBulkDelete = async () => {
@@ -863,6 +939,24 @@ export default function TransactionsPage() {
         onClose={() => setIsCreatePortfolioModalOpen(false)}
         onCreate={handleCreatePortfolio}
         onCreateWithTransactions={handleCreatePortfolioWithTransactions}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteTransactionModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setTransactionToDelete(null);
+        }}
+        onConfirm={confirmDeleteTransaction}
+        transaction={transactionToDelete}
+      />
+
+      {/* Delete Toast with Undo */}
+      <DeleteToast
+        transaction={deletedTransaction}
+        onUndo={handleUndoDelete}
+        onClose={handleCloseToast}
       />
     </div>
   );

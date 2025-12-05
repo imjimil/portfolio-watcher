@@ -159,8 +159,8 @@ export default function HoldingsTable({
 
   return (
     <>
-      {/* Mobile Card View - 2 Column Grid */}
-      <div className="md:hidden grid grid-cols-2 gap-2">
+      {/* Mobile Card View - 1 Column Grid */}
+      <div className="md:hidden grid grid-cols-1 gap-3">
         {sortedHoldings.map((holding) => {
           const isPositive = holding.gainLoss >= 0;
           
@@ -171,43 +171,49 @@ export default function HoldingsTable({
                 setSelectedHolding(holding);
                 setShowDetailModal(true);
               }}
-              className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 p-3 cursor-pointer active:scale-[0.98] transition-transform"
+              className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50 p-4 cursor-pointer active:scale-[0.98] transition-transform"
             >
               {/* Header: Symbol & Percentage */}
-              <div className="flex items-start justify-between gap-1 mb-2">
-                <div className="min-w-0 flex items-center gap-2 flex-1">
-                  <CompanyLogo symbol={holding.symbol} name={holding.name} size={28} />
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0 flex items-center gap-3 flex-1">
+                  <CompanyLogo symbol={holding.symbol} name={holding.name} size={36} />
                   <div className="min-w-0 flex-1">
-                    <span className="font-bold text-sm text-gray-900 dark:text-white block truncate">{holding.symbol}</span>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{holding.name}</p>
+                    <span className="font-bold text-base text-gray-900 dark:text-white block truncate">{holding.symbol}</span>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{holding.name}</p>
                   </div>
                 </div>
                 <div className={cn(
-                  'flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                  'flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full',
                   isPositive 
                     ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30' 
                     : 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30'
                 )}>
-                  {isPositive ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                  {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   {isPositive ? '+' : ''}{formatPercent(holding.gainLossPercent)}
                 </div>
               </div>
 
-              {/* Value & Return */}
-              <div className="flex items-end justify-between">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
                 <div>
-                  <p className="text-[10px] text-gray-500">Value</p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">Value</p>
                   <p className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
                     {formatCurrency(holding.currentValue)}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-gray-500">Return</p>
+                <div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">Return</p>
                   <p className={cn(
-                    'text-xs font-medium tabular-nums',
+                    'text-sm font-semibold tabular-nums',
                     isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
                   )}>
                     {isPositive ? '+' : ''}{formatCurrency(holding.gainLoss)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">Shares</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
+                    {formatNumber(holding.quantity)}
                   </p>
                 </div>
               </div>

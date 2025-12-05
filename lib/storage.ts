@@ -88,9 +88,9 @@ export async function savePortfolio(portfolio: Portfolio, skipTransactions: bool
       throw error;
     }
 
-    // Save transactions only if not skipped and there are new transactions
-    if (!skipTransactions && portfolio.transactions && portfolio.transactions.length > 0) {
-      await saveTransactions(portfolio.id, portfolio.transactions);
+    // Sync transactions (insert new, delete removed, update existing)
+    if (!skipTransactions) {
+      await syncTransactions(portfolio.id, portfolio.transactions || []);
     }
   } catch (error) {
     console.error('Error saving portfolio:', error);
@@ -251,6 +251,88 @@ async function saveTransactions(portfolioId: string, transactions: any[]) {
     if (error) {
       console.error('Error inserting transactions:', error);
       throw error;
+    }
+  }
+}
+
+// Sync transactions: insert new, update existing, delete removed
+async function syncTransactions(portfolioId: string, transactions: any[]) {
+  const supabase = createClient();
+
+  // Get existing transaction IDs
+  const { data: existing } = await supabase
+    .from('transactions')
+    .select('id')
+    .eq('portfolio_id', portfolioId);
+
+  const existingIds = new Set((existing || []).map((t: any) => t.id));
+  const currentIds = new Set(transactions.map(t => t.id));
+
+  // Find transactions to delete (exist in DB but not in portfolio)
+  const toDelete = Array.from(existingIds).filter(id => !currentIds.has(id));
+  
+  // Delete removed transactions
+  if (toDelete.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('portfolio_id', portfolioId)
+      .in('id', toDelete);
+
+    if (deleteError) {
+      console.error('Error deleting transactions:', deleteError);
+      throw deleteError;
+    }
+  }
+
+  // Find transactions to insert (new) and update (existing)
+  const toInsert = transactions.filter(t => !existingIds.has(t.id));
+  const toUpdate = transactions.filter(t => existingIds.has(t.id));
+
+  // Insert new transactions
+  if (toInsert.length > 0) {
+    const insertData = toInsert.map(t => ({
+      id: t.id,
+      portfolio_id: portfolioId,
+      symbol: t.symbol,
+      type: t.type,
+      quantity: t.quantity,
+      price: t.price,
+      date: t.date,
+      fees: t.fees || 0,
+      notes: t.notes || null,
+    }));
+    
+    const { error: insertError } = await supabase
+      .from('transactions')
+      .insert(insertData);
+
+    if (insertError) {
+      console.error('Error inserting transactions:', insertError);
+      throw insertError;
+    }
+  }
+
+  // Update existing transactions
+  if (toUpdate.length > 0) {
+    for (const transaction of toUpdate) {
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({
+          symbol: transaction.symbol,
+          type: transaction.type,
+          quantity: transaction.quantity,
+          price: transaction.price,
+          date: transaction.date,
+          fees: transaction.fees || 0,
+          notes: transaction.notes || null,
+        })
+        .eq('id', transaction.id);
+
+      if (updateError) {
+        console.error('Error updating transaction:', updateError);
+        throw updateError;
+      }
     }
   }
 }

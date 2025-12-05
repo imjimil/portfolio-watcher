@@ -53,6 +53,7 @@ export default function Dashboard() {
   const [isCreatePortfolioModalOpen, setIsCreatePortfolioModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [chartLoading, setChartLoading] = useState(false);
   const isUpdatingRef = useRef(false);
   const lastTransactionHashRef = useRef<string>('');
 
@@ -294,9 +295,11 @@ export default function Dashboard() {
     const fetchHistoricalPortfolioData = async () => {
       if (!activePortfolio || activePortfolio.transactions.length === 0) {
         setHistoricalData([]);
+        setChartLoading(false);
         return;
       }
 
+      setChartLoading(true);
       try {
         // Calculate actual portfolio value over time based on all holdings and transactions
         // This will properly account for when transactions occurred
@@ -309,6 +312,8 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Error fetching historical portfolio data:', error);
         setHistoricalData([]);
+      } finally {
+        setChartLoading(false);
       }
     };
 
@@ -585,29 +590,29 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center min-w-0">
                   <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Cost</div>
-                  <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white tabular-nums mt-0.5 truncate">
+                  <div className="text-[10px] sm:text-xs font-bold text-gray-900 dark:text-white tabular-nums mt-0.5 break-words leading-tight">
                     {formatCurrency(collectiveStats.totalCost)}
                   </div>
                 </div>
-                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center min-w-0">
                   <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Gain</div>
-                  <div className={`text-xs sm:text-sm font-bold tabular-nums mt-0.5 truncate ${
+                  <div className={`text-[10px] sm:text-xs font-bold tabular-nums mt-0.5 break-words leading-tight ${
                     collectiveStats.totalGainLoss >= 0 ? 'text-emerald-600' : 'text-red-500'
                   }`}>
                     {collectiveStats.totalGainLoss >= 0 ? '+' : ''}{formatCurrency(collectiveStats.totalGainLoss)}
                   </div>
                 </div>
-                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center min-w-0">
                   <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Trades</div>
-                  <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white mt-0.5">
+                  <div className="text-[10px] sm:text-xs font-bold text-gray-900 dark:text-white mt-0.5">
                     {collectiveStats.totalTransactions}
                   </div>
                 </div>
-                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center">
+                <div className="bg-white/60 dark:bg-gray-800/50 rounded-xl p-2 sm:p-3 text-center min-w-0">
                   <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-wide font-medium">Folios</div>
-                  <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white mt-0.5">
+                  <div className="text-[10px] sm:text-xs font-bold text-gray-900 dark:text-white mt-0.5">
                     {portfolios.length}
                   </div>
                 </div>
@@ -617,19 +622,19 @@ export default function Dashboard() {
 
           {/* Stats Grid - Modern Cards */}
           {loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-6">
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : refreshing && activePortfolio && activePortfolio.transactions.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-6">
               {[1, 2, 3, 4].map((i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
           ) : portfolioStats ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-6">
               <StatCard
                 title="Portfolio Value"
                 value={portfolioStats.totalValue}
@@ -726,14 +731,23 @@ export default function Dashboard() {
                       ))}
                     </div>
                   </div>
-                  <PortfolioChart 
-                    data={historicalData} 
-                    period={chartPeriod}
-                    currentValue={activePortfolio?.totalValue}
-                    costBasis={activePortfolio?.totalCost}
-                    transactions={activePortfolio?.transactions || []}
-                    periodGain={performance?.periodGain}
-                  />
+                  {chartLoading ? (
+                    <div className="w-full h-[300px] flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Loading chart data...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <PortfolioChart 
+                      data={historicalData} 
+                      period={chartPeriod}
+                      currentValue={activePortfolio?.totalValue}
+                      costBasis={activePortfolio?.totalCost}
+                      transactions={activePortfolio?.transactions || []}
+                      periodGain={performance?.periodGain}
+                    />
+                  )}
                   {/* Period selector - Mobile */}
                   <div className="flex sm:hidden gap-1 justify-center mt-4 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mx-auto w-fit">
                     {(['1d', '5d', '1m', '6m', 'ytd', 'all'] as const).map((period) => (

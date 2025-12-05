@@ -5,11 +5,13 @@ import type { NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow unauthenticated access to landing, login, signup, and auth pages
+  // Allow unauthenticated access to landing, login, signup, password reset, and auth pages
   if (
     pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
     pathname.startsWith('/auth')
   ) {
     return NextResponse.next();

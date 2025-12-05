@@ -15,6 +15,7 @@ import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, ReferenceLine } fro
 import AlertModal from '@/components/AlertModal';
 import TargetPriceModal from '@/components/TargetPriceModal';
 import SkeletonWatchlist from '@/components/skeletons/SkeletonWatchlist';
+import DeleteToast from '@/components/DeleteToast';
 
 type SortField = 'symbol' | 'price' | 'change' | 'changePercent' | 'targetPrice' | 'dateAdded';
 type FilterType = 'all' | 'gainers' | 'losers' | 'alerts' | 'targets';
@@ -52,6 +53,9 @@ export default function WatchlistPage() {
   const [alertSymbol, setAlertSymbol] = useState<string>('');
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetSymbol, setTargetSymbol] = useState<string>('');
+  const [removedItem, setRemovedItem] = useState<WatchlistItem | null>(null);
+  const [removedCount, setRemovedCount] = useState<number>(0);
+  const [removedItems, setRemovedItems] = useState<WatchlistItem[]>([]); // For bulk removal
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -463,6 +467,14 @@ export default function WatchlistPage() {
   };
 
   const handleRemove = async (symbol: string) => {
+    const itemToRemove = watchlist.find(w => w.symbol === symbol);
+    if (!itemToRemove) return;
+
+    // Show toast immediately, before removing from UI
+    setRemovedItem(itemToRemove);
+    setRemovedCount(1);
+
+    // Then remove from UI and save
     const updated = watchlist.filter(w => w.symbol !== symbol);
     setWatchlist(updated);
     await saveWatchlist(updated);
@@ -475,12 +487,69 @@ export default function WatchlistPage() {
 
   const handleBulkRemove = async () => {
     if (selectedItems.size === 0) return;
-    if (!confirm(`Remove ${selectedItems.size} item(s) from watchlist?`)) return;
     
+    const itemsToRemove = watchlist.filter(w => selectedItems.has(w.symbol));
+    const firstRemovedItem = itemsToRemove[0];
+    const count = selectedItems.size;
+
+    // Show toast immediately, before removing from UI
+    if (firstRemovedItem) {
+      setRemovedItem(firstRemovedItem);
+      setRemovedCount(count);
+      setRemovedItems(itemsToRemove); // Store all removed items for undo
+    }
+
+    // Then remove from UI and save
     const updated = watchlist.filter(w => !selectedItems.has(w.symbol));
     setWatchlist(updated);
     await saveWatchlist(updated);
     setSelectedItems(new Set());
+  };
+
+  const handleUndoRemove = async () => {
+    if (!removedItem) return;
+
+    // Restore the item(s)
+    if (removedCount > 1 && removedItems.length > 0) {
+      // For bulk removal, restore all items
+      const symbolsToRestore = new Set(removedItems.map(item => item.symbol));
+      const existingSymbols = new Set(watchlist.map(w => w.symbol));
+      
+      // Filter out items that already exist
+      const itemsToRestore = removedItems.filter(item => !existingSymbols.has(item.symbol));
+      
+      if (itemsToRestore.length > 0) {
+        const restored = [...watchlist, ...itemsToRestore].sort((a, b) => {
+          const dateA = new Date(a.dateAdded || 0).getTime();
+          const dateB = new Date(b.dateAdded || 0).getTime();
+          return dateB - dateA; // Most recent first
+        });
+        setWatchlist(restored);
+        await saveWatchlist(restored);
+      }
+    } else {
+      // Single item removal - restore it
+      const itemExists = watchlist.some(w => w.symbol === removedItem.symbol);
+      if (!itemExists) {
+        const restored = [...watchlist, removedItem].sort((a, b) => {
+          const dateA = new Date(a.dateAdded || 0).getTime();
+          const dateB = new Date(b.dateAdded || 0).getTime();
+          return dateB - dateA; // Most recent first
+        });
+        setWatchlist(restored);
+        await saveWatchlist(restored);
+      }
+    }
+
+    setRemovedItem(null);
+    setRemovedCount(0);
+    setRemovedItems([]);
+  };
+
+  const handleCloseToast = () => {
+    setRemovedItem(null);
+    setRemovedCount(0);
+    setRemovedItems([]);
   };
 
   const toggleSelect = (symbol: string) => {
@@ -1278,6 +1347,17 @@ export default function WatchlistPage() {
               onSave={(price) => handleSaveTarget(targetSymbol, price)}
             />
           )}
+
+          {/* Remove Toast with Undo */}
+          <DeleteToast
+            item={removedItem}
+            itemId={removedItem?.symbol}
+            title={removedCount > 1 ? `${removedCount} items removed` : 'Item removed'}
+            subtitle={removedCount > 1 ? 'from watchlist' : removedItem ? `${removedItem.symbol} • ${removedItem.name || 'Watchlist'}` : undefined}
+            count={removedCount > 1 ? removedCount : undefined}
+            onUndo={handleUndoRemove}
+            onClose={handleCloseToast}
+          />
         </div>
         )}
       </main>

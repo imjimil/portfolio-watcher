@@ -482,7 +482,8 @@ export default function TransactionsPage() {
     setPortfolios(prev => prev.map(p => p.id === updatedPortfolio.id ? updatedPortfolio : p));
     lastTransactionHashRef.current = '';
 
-    // Clear undo state
+    // Clear undo state AFTER all async operations complete
+    // This ensures the toast stays visible until undo is fully complete
     setDeletedTransaction(null);
     setDeletedTransactionPortfolio(null);
   };
@@ -954,7 +955,10 @@ export default function TransactionsPage() {
 
       {/* Delete Toast with Undo */}
       <DeleteToast
-        transaction={deletedTransaction}
+        item={deletedTransaction}
+        itemId={deletedTransaction?.id}
+        title="Transaction deleted"
+        subtitle={deletedTransaction ? `${deletedTransaction.symbol} • ${deletedTransaction.type}` : undefined}
         onUndo={handleUndoDelete}
         onClose={handleCloseToast}
       />

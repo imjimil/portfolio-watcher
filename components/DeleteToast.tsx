@@ -2,32 +2,53 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Undo2 } from 'lucide-react';
-import { Transaction } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface DeleteToastProps {
-  transaction: Transaction | null;
+  item: any | null; // Generic item (Transaction, WatchlistItem, etc.)
+  itemId?: string; // Unique identifier for the item
+  title?: string; // Custom title (e.g., "Transaction deleted", "Item removed")
+  subtitle?: string; // Custom subtitle (e.g., "AAPL • buy", "AAPL • Apple Inc.")
+  count?: number; // For bulk operations
   onUndo: () => void;
   onClose: () => void;
 }
 
-export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToastProps) {
+export default function DeleteToast({ 
+  item, 
+  itemId, 
+  title, 
+  subtitle, 
+  count,
+  onUndo, 
+  onClose 
+}: DeleteToastProps) {
   const [progress, setProgress] = useState(100);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const touchStartRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const toastRef = useRef<HTMLDivElement>(null);
-  const transactionIdRef = useRef<string | null>(null);
+  const itemIdRef = useRef<string | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const isInitializedRef = useRef(false);
+  const isUndoingRef = useRef(false); // Track if undo is in progress
+
+  // Get unique identifier for the item
+  const getItemIdentifier = () => {
+    if (itemId) return itemId;
+    if (item?.id) return item.id;
+    if (item?.symbol) return item.symbol;
+    return JSON.stringify(item);
+  };
 
   useEffect(() => {
-    if (!transaction) {
-      // Reset when transaction is cleared
-      transactionIdRef.current = null;
+    if (!item) {
+      // Reset when item is cleared
+      itemIdRef.current = null;
       startTimeRef.current = null;
       isInitializedRef.current = false;
+      isUndoingRef.current = false;
       setProgress(100);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -36,15 +57,15 @@ export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToas
       return;
     }
 
-    const currentTransactionId = transaction.id;
+    const currentItemId = getItemIdentifier();
 
-    // If this is the same transaction ID and already initialized, don't restart
-    if (transactionIdRef.current === currentTransactionId && isInitializedRef.current && intervalRef.current) {
+    // If this is the same item ID and already initialized, don't restart
+    if (itemIdRef.current === currentItemId && isInitializedRef.current && intervalRef.current) {
       return;
     }
 
-    // New transaction - start fresh
-    transactionIdRef.current = currentTransactionId;
+    // New item - start fresh
+    itemIdRef.current = currentItemId;
     startTimeRef.current = Date.now();
     isInitializedRef.current = true;
     setProgress(100);
@@ -57,7 +78,18 @@ export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToas
 
     // Start progress bar countdown (3 seconds)
     intervalRef.current = setInterval(() => {
-      if (!startTimeRef.current || transactionIdRef.current !== currentTransactionId) {
+      // CRITICAL: Check flag FIRST, before any other logic
+      // This prevents race conditions when undo is clicked at the last moment
+      if (isUndoingRef.current) {
+        // Undo was clicked, stop the interval immediately
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        return;
+      }
+
+      if (!startTimeRef.current || itemIdRef.current !== currentItemId) {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
@@ -70,12 +102,22 @@ export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToas
       const newProgress = (remaining / 3000) * 100;
 
       if (newProgress <= 0) {
+        // Double-check flag one more time before closing
+        if (isUndoingRef.current) {
+          // Undo was clicked, don't close - let undo handle it
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return;
+        }
+        
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
         startTimeRef.current = null;
-        transactionIdRef.current = null;
+        itemIdRef.current = null;
         isInitializedRef.current = false;
         onClose();
         return;
@@ -84,32 +126,41 @@ export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToas
       setProgress(newProgress);
     }, 50); // Update more frequently for smoother animation
 
-    // Cleanup: only clear if transaction ID actually changed
+    // Cleanup: only clear if item ID actually changed
     return () => {
-      // Only cleanup if the transaction ID changed (not just a re-render with same ID)
-      if (transactionIdRef.current !== currentTransactionId) {
+      // Only cleanup if the item ID changed (not just a re-render with same ID)
+      if (itemIdRef.current !== currentItemId) {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
-        if (!transaction || transaction.id !== transactionIdRef.current) {
+        if (!item || getItemIdentifier() !== itemIdRef.current) {
           startTimeRef.current = null;
           isInitializedRef.current = false;
         }
       }
     };
-  }, [transaction?.id]); // Only depend on transaction ID
+  }, [item, itemId]); // Depend on item and itemId
 
   const handleUndo = () => {
+    // CRITICAL: Set flag FIRST, synchronously, before anything else
+    // This prevents the interval from calling onClose() even if it's in the middle of execution
+    isUndoingRef.current = true;
+    
+    // Clear interval immediately to stop the timer
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    transactionIdRef.current = null;
+    
+    // Reset refs to prevent any further interval checks
+    itemIdRef.current = null;
     startTimeRef.current = null;
     isInitializedRef.current = false;
+    
+    // Call onUndo - this is async, but we've already protected against onClose()
+    // The parent will clear the item state after undo completes, which will hide the toast
     onUndo();
-    onClose();
   };
 
   // Swipe handlers for mobile
@@ -134,7 +185,7 @@ export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToas
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      transactionIdRef.current = null;
+      itemIdRef.current = null;
       startTimeRef.current = null;
       isInitializedRef.current = false;
       onClose();
@@ -146,7 +197,17 @@ export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToas
     setIsSwiping(false);
   };
 
-  if (!transaction) return null;
+  if (!item) return null;
+
+  // Generate display text
+  const displayTitle = title || (count && count > 1 ? `${count} items removed` : 'Item deleted');
+  const displaySubtitle = subtitle || (
+    count && count > 1 
+      ? 'from watchlist' 
+      : item.symbol 
+        ? `${item.symbol}${item.type ? ` • ${item.type}` : item.name ? ` • ${item.name}` : ''}`
+        : 'Item'
+  );
 
   return (
     <div
@@ -181,10 +242,10 @@ export default function DeleteToast({ transaction, onUndo, onClose }: DeleteToas
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              Transaction deleted
+              {displayTitle}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {transaction.symbol} • {transaction.type}
+              {displaySubtitle}
             </p>
           </div>
         </div>

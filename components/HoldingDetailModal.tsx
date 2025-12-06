@@ -27,13 +27,13 @@ export default function HoldingDetailModal({ isOpen, onClose, holding, portfolio
             <div className="min-w-0 flex-1">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {holding.symbol}
-              </h2>
+            </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                 {holding.name}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Detailed Holding Information
-              </p>
+              Detailed Holding Information
+            </p>
             </div>
           </div>
           <button

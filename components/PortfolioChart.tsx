@@ -59,9 +59,9 @@ const CustomTooltip = ({ active, payload, label, isIntraday, startValue }: any) 
         </div>
         <div className="mt-1 space-y-0.5">
           {!isIntraday && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Cost Basis: {formatCurrency(costBasis)}
-            </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Cost Basis: {formatCurrency(costBasis)}
+          </p>
           )}
           <p className={`text-xs font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             {isPositive ? '+' : ''}{formatCurrency(gainLoss)} ({isPositive ? '+' : ''}{gainLossPercent.toFixed(2)}%)

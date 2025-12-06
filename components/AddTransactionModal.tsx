@@ -180,7 +180,7 @@ export default function AddTransactionModal({
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                {isEditing ? 'Edit Transaction' : 'Add Transaction'}
+            {isEditing ? 'Edit Transaction' : 'Add Transaction'}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {isEditing ? 'Update transaction details' : 'Create a new transaction'}
@@ -331,22 +331,22 @@ export default function AddTransactionModal({
 
         {/* Footer */}
         <div className="flex items-center gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-100 dark:border-gray-700">
-          <button
-            type="button"
-            onClick={onClose}
+            <button
+              type="button"
+              onClick={onClose}
             className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
             form="transaction-form"
             className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 sm:gap-2"
-          >
+            >
             <PlusCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
             <span>{isEditing ? 'Save' : 'Add'}</span>
-          </button>
-        </div>
+            </button>
+          </div>
       </div>
     </div>
   );

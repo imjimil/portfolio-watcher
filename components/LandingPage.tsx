@@ -181,7 +181,7 @@ export default function LandingPage() {
                   <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <span className="text-xl font-bold tracking-tight">Portfolio</span>
-              </Link>
+            </Link>
               
               {/* Desktop Nav */}
               <nav className="hidden md:flex items-center gap-8">
@@ -191,20 +191,20 @@ export default function LandingPage() {
               </nav>
 
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => handleNavigation('/login')}
-                  disabled={isNavigating}
+              <button
+                onClick={() => handleNavigation('/login')}
+                disabled={isNavigating}
                   className="hidden sm:block text-sm font-medium text-gray-300 hover:text-white transition-colors px-4 py-2"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => handleNavigation('/signup')}
-                  disabled={isNavigating}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => handleNavigation('/signup')}
+                disabled={isNavigating}
                   className="px-5 py-2.5 text-sm font-semibold bg-white text-black rounded-full hover:bg-gray-100 transition-all hover:scale-105 active:scale-100"
-                >
-                  Get Started
-                </button>
+              >
+                Get Started
+              </button>
               </div>
             </div>
           </div>

@@ -76,26 +76,26 @@ export default function SignupPage() {
             <div className="text-center py-4">
               <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
-              </div>
+                  </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Check your email
-              </h3>
+                  Check your email
+                </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
                 We sent a confirmation link to
-              </p>
+                </p>
               <p className="text-sm font-semibold text-gray-900 dark:text-white mb-4 break-all">
-                {email}
-              </p>
+                  {email}
+                </p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">
                 Click the link to confirm your account
-              </p>
+                </p>
               <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50 space-y-3">
                 <Link 
                   href="/login" 
                   className="block w-full text-center py-2.5 px-4 text-sm font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 >
-                  Sign in
-                </Link>
+                    Sign in
+                  </Link>
                 <button
                   onClick={() => {
                     setSuccess(false);
@@ -118,68 +118,68 @@ export default function SignupPage() {
                 </div>
               )}
 
-              <div>
+            <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Name <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <div className="relative">
+              </label>
+              <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <User className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
-                    placeholder="John Doe"
-                  />
                 </div>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
+                  placeholder="John Doe"
+                />
               </div>
+            </div>
 
-              <div>
+            <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Email
-                </label>
-                <div className="relative">
+              </label>
+              <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <Mail className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
-                    placeholder="you@example.com"
-                  />
                 </div>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
+                  placeholder="you@example.com"
+                />
               </div>
+            </div>
 
-              <div>
+            <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
+                Password
+              </label>
+              <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <Lock className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
+                </div>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
                     className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-gray-400"
                     placeholder="••••••••"
-                  />
-                </div>
+                />
+              </div>
                 <p className="text-xs text-gray-400 mt-1.5">
                   At least 6 characters
-                </p>
-              </div>
+              </p>
+            </div>
 
               <button
                 type="submit"

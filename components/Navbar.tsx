@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Moon, Sun, TrendingUp, Wallet, List, Eye, LogOut, User, ChevronDown, Settings } from 'lucide-react';
+import { Moon, Sun, TrendingUp, Wallet, List, Eye, LogOut, User, ChevronDown, Settings, BarChart3 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -56,8 +56,9 @@ export default function Navbar() {
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: TrendingUp },
     { href: '/holdings', label: 'Holdings', icon: Wallet },
-    { href: '/transactions', label: 'Activity', icon: List },
+    { href: '/market', label: 'Market', icon: BarChart3 },
     { href: '/watchlist', label: 'Watchlist', icon: Eye },
+    { href: '/transactions', label: 'Activity', icon: List },
   ];
 
   const isActive = (href: string) => pathname === href;

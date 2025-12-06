@@ -647,12 +647,12 @@ export default function ProfilePage() {
                                 </>
                               ) : (
                                 <>
-                                  <span>{formatCurrency(portfolio.totalValue)}</span>
+                              <span>{formatCurrency(portfolio.totalValue)}</span>
                                   <span className={portfolio.totalGainLossPercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
-                                    {portfolio.totalGainLossPercent >= 0 ? '+' : ''}
-                                    {portfolio.totalGainLossPercent.toFixed(2)}%
-                                  </span>
-                                  <span>{portfolio.transactions?.length || 0} transactions</span>
+                                {portfolio.totalGainLossPercent >= 0 ? '+' : ''}
+                                {portfolio.totalGainLossPercent.toFixed(2)}%
+                              </span>
+                              <span>{portfolio.transactions?.length || 0} transactions</span>
                                 </>
                               )}
                             </div>
@@ -702,13 +702,13 @@ export default function ProfilePage() {
             {/* Data Management */}
             <div className="bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Data</p>
-              <button
-                onClick={handleExportData}
+                <button
+                  onClick={handleExportData}
                 className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Download className="h-5 w-5" />
+                >
+                  <Download className="h-5 w-5" />
                 <span className="text-sm font-medium">Export All Data</span>
-              </button>
+                </button>
             </div>
 
             {/* Security */}
@@ -720,7 +720,7 @@ export default function ProfilePage() {
               <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
                 <p className="text-xs text-gray-600 dark:text-gray-400">
                   Your data is encrypted and securely stored. For password changes, use the email reset link.
-                </p>
+                  </p>
               </div>
             </div>
 

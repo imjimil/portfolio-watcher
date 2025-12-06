@@ -78,7 +78,7 @@ export default function PortfolioSwitcher({
             {portfolios.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No portfolios yet. Create one to get started!
+                No portfolios yet. Create one to get started!
                 </p>
               </div>
             ) : (
@@ -88,34 +88,34 @@ export default function PortfolioSwitcher({
                   const isPositive = portfolio.totalGainLossPercent >= 0;
                   
                   return (
-                    <button
-                      key={portfolio.id}
-                      onClick={() => {
-                        onSelect(portfolio.id);
-                        setIsOpen(false);
-                      }}
+                <button
+                  key={portfolio.id}
+                  onClick={() => {
+                    onSelect(portfolio.id);
+                    setIsOpen(false);
+                  }}
                       className={cn(
                         'w-full text-left px-4 py-3 rounded-xl transition-colors',
                         isActive
                           ? 'bg-blue-50 dark:bg-blue-900/20'
                           : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                       )}
-                    >
+                >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className={cn(
                               'font-semibold truncate',
                               isActive
-                                ? 'text-blue-700 dark:text-blue-300'
-                                : 'text-gray-900 dark:text-white'
+                        ? 'text-blue-700 dark:text-blue-300'
+                        : 'text-gray-900 dark:text-white'
                             )}>
-                              {portfolio.name}
-                            </span>
+                      {portfolio.name}
+                    </span>
                             {isActive && (
                               <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                            )}
-                          </div>
+                    )}
+                  </div>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-sm font-medium text-gray-900 dark:text-white tabular-nums">
                               {formatCurrency(portfolio.totalValue)}
@@ -127,14 +127,14 @@ export default function PortfolioSwitcher({
                                 : 'text-red-500 dark:text-red-400'
                             )}>
                               {isPositive ? '+' : ''}{portfolio.totalGainLossPercent.toFixed(2)}%
-                            </span>
+                    </span>
                           </div>
                         </div>
                         <div className="text-right text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-4">
                           {portfolio.transactions?.length || 0} trades
                         </div>
-                      </div>
-                    </button>
+                  </div>
+                </button>
                   );
                 })}
               </div>

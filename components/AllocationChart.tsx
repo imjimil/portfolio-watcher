@@ -33,7 +33,7 @@ const CustomTooltip = ({ active, payload }: any) => {
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md px-2.5 py-1.5">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-gray-900 dark:text-white">
-            {data.name}
+          {data.name}
           </span>
           <span className="text-xs font-bold text-gray-900 dark:text-white tabular-nums">
             {formatCurrency(data.value)}
@@ -94,7 +94,7 @@ export default function AllocationChart({ holdings }: AllocationChartProps) {
       value: h.currentValue,
       allocation: h.allocation,
       gainPercent: h.gainLossPercent,
-    }));
+  }));
   }
 
   if (chartData.length === 0) {
@@ -112,14 +112,14 @@ export default function AllocationChart({ holdings }: AllocationChartProps) {
         {/* Pie Chart - centered and compact, no ResponsiveContainer needed for fixed size */}
         <div className="flex justify-center mb-4">
           <PieChart width={180} height={180}>
-            <Pie
+          <Pie
               data={chartData}
-              cx="50%"
-              cy="50%"
+            cx="50%"
+            cy="50%"
               innerRadius="40%"
               outerRadius="85%"
               paddingAngle={2}
-              dataKey="value"
+            dataKey="value"
               onMouseEnter={(_, index) => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(null)}
             >
@@ -134,9 +134,9 @@ export default function AllocationChart({ holdings }: AllocationChartProps) {
                     cursor: 'pointer',
                   }}
                 />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
           </PieChart>
         </div>
         
@@ -208,11 +208,11 @@ export default function AllocationChart({ holdings }: AllocationChartProps) {
                     filter: activeIndex === index ? 'brightness(1.1)' : 'none',
                     cursor: 'pointer',
                   }}
-                />
+          />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
-          </PieChart>
+        </PieChart>
         </div>
 
         {/* Legend - horizontal wrap */}

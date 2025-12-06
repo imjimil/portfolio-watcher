@@ -119,7 +119,7 @@ export default function TransactionHistory({
                 )}
                 <div className="flex items-center gap-1">
                   {onEdit && (
-                    <button
+                      <button
                       onClick={() => onEdit(transaction)}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                     >
@@ -132,8 +132,8 @@ export default function TransactionHistory({
                       className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                      </button>
+                    )}
                 </div>
               </div>
             </div>
@@ -167,8 +167,8 @@ export default function TransactionHistory({
                 </th>
                 {stockData && Object.keys(stockData).length > 0 && (
                   <th className="px-5 py-4 text-right text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Gain/Loss
-                  </th>
+                      Gain/Loss
+                    </th>
                 )}
                 {(onDelete || onEdit) && (
                   <th className="px-5 py-4 w-20"></th>
@@ -205,15 +205,15 @@ export default function TransactionHistory({
                     </td>
                     <td className="px-5 py-4 whitespace-nowrap text-right">
                       <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
-                        {formatCurrency(transaction.quantity * transaction.price)}
-                      </span>
+                          {formatCurrency(transaction.quantity * transaction.price)}
+                        </span>
                       {transaction.fees && transaction.fees > 0 && (
                         <div className="text-xs text-gray-500">+{formatCurrency(transaction.fees)} fees</div>
                       )}
                     </td>
                     {stockData && Object.keys(stockData).length > 0 && (
                       <td className="px-5 py-4 whitespace-nowrap text-right">
-                        {gainLoss ? (
+                          {gainLoss ? (
                           <div className="flex items-center justify-end gap-1.5">
                             {gainLoss.gainLoss >= 0 ? (
                               <TrendingUp className="h-4 w-4 text-emerald-500" />
@@ -233,12 +233,12 @@ export default function TransactionHistory({
                               )}>
                                 {gainLoss.gainLossPercent >= 0 ? '+' : ''}{gainLoss.gainLossPercent.toFixed(2)}%
                               </div>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
+                          ) : (
                           <span className="text-gray-400">—</span>
-                        )}
-                      </td>
+                          )}
+                        </td>
                     )}
                     {(onDelete || onEdit) && (
                       <td className="px-5 py-4 whitespace-nowrap">

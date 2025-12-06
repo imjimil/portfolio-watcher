@@ -39,17 +39,17 @@ export async function getPortfolios(): Promise<Portfolio[]> {
       const transactionCount = p.transactions?.[0]?.count || 0;
       
       return {
-        id: p.id,
-        name: p.name,
-        description: p.description || undefined,
-        holdings: [], // Will be calculated
+      id: p.id,
+      name: p.name,
+      description: p.description || undefined,
+      holdings: [], // Will be calculated
         transactions: new Array(transactionCount), // Placeholder array with correct length for count display
-        totalValue: Number(p.total_value) || 0,
-        totalCost: Number(p.total_cost) || 0,
-        totalGainLoss: Number(p.total_gain_loss) || 0,
-        totalGainLossPercent: Number(p.total_gain_loss_percent) || 0,
-        createdAt: p.created_at,
-        updatedAt: p.updated_at,
+      totalValue: Number(p.total_value) || 0,
+      totalCost: Number(p.total_cost) || 0,
+      totalGainLoss: Number(p.total_gain_loss) || 0,
+      totalGainLossPercent: Number(p.total_gain_loss_percent) || 0,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
       };
     });
   } catch (error) {
@@ -233,17 +233,17 @@ async function saveTransactions(portfolioId: string, transactions: any[]) {
   // Only insert new transactions
   if (toInsert.length > 0) {
     const insertData = toInsert.map(t => ({
-      id: t.id,
-      portfolio_id: portfolioId,
-      symbol: t.symbol,
-      type: t.type,
-      quantity: t.quantity,
-      price: t.price,
-      date: t.date,
-      fees: t.fees || 0,
-      notes: t.notes || null,
+          id: t.id,
+          portfolio_id: portfolioId,
+          symbol: t.symbol,
+          type: t.type,
+          quantity: t.quantity,
+          price: t.price,
+          date: t.date,
+          fees: t.fees || 0,
+          notes: t.notes || null,
     }));
-    
+
     const { error } = await supabase
       .from('transactions')
       .insert(insertData);
@@ -294,13 +294,13 @@ async function syncTransactions(portfolioId: string, transactions: any[]) {
     const insertData = toInsert.map(t => ({
       id: t.id,
       portfolio_id: portfolioId,
-      symbol: t.symbol,
-      type: t.type,
-      quantity: t.quantity,
-      price: t.price,
-      date: t.date,
-      fees: t.fees || 0,
-      notes: t.notes || null,
+        symbol: t.symbol,
+        type: t.type,
+        quantity: t.quantity,
+        price: t.price,
+        date: t.date,
+        fees: t.fees || 0,
+        notes: t.notes || null,
     }));
     
     const { error: insertError } = await supabase
@@ -354,19 +354,19 @@ export async function updateTransaction(transaction: any) {
     })
     .eq('id', transaction.id);
 
-  if (error) throw error;
-}
+    if (error) throw error;
+  }
 
 // Delete a single transaction
 export async function deleteTransaction(transactionId: string) {
   const supabase = createClient();
   
-  const { error } = await supabase
-    .from('transactions')
-    .delete()
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
     .eq('id', transactionId);
 
-  if (error) throw error;
+    if (error) throw error;
 }
 
 // Watchlist

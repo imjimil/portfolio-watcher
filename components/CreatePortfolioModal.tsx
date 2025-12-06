@@ -225,12 +225,12 @@ export default function CreatePortfolioModal({
 
   const resetAndClose = () => {
     setStep('choose');
-    setName('');
-    setDescription('');
-    setError(null);
+      setName('');
+      setDescription('');
+      setError(null);
     setParsedTransactions([]);
     setFileName('');
-    onClose();
+      onClose();
   };
 
   const handleBack = () => {
@@ -263,7 +263,7 @@ export default function CreatePortfolioModal({
               {step === 'choose' && 'Create Portfolio'}
               {step === 'manual' && 'New Portfolio'}
               {step === 'import' && 'Import from CSV'}
-            </h2>
+          </h2>
           </div>
           <button
             onClick={resetAndClose}
@@ -320,63 +320,63 @@ export default function CreatePortfolioModal({
           {/* Step: Manual Create */}
           {step === 'manual' && (
             <form onSubmit={handleManualSubmit} className="space-y-4">
-              <div>
+          <div>
                 <label htmlFor="portfolio-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Name
-                </label>
-                <input
-                  id="portfolio-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  disabled={loading}
+            </label>
+            <input
+              id="portfolio-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              disabled={loading}
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                  placeholder="e.g., Retirement Portfolio"
+              placeholder="e.g., Retirement Portfolio"
                   autoFocus
-                />
-              </div>
+            />
+          </div>
 
-              <div>
+          <div>
                 <label htmlFor="portfolio-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Description <span className="text-gray-400 text-xs">(optional)</span>
-                </label>
-                <textarea
-                  id="portfolio-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={loading}
+              Description <span className="text-gray-400 text-xs">(optional)</span>
+            </label>
+            <textarea
+              id="portfolio-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={loading}
                   rows={2}
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 resize-none"
                   placeholder="Add a description..."
-                />
-              </div>
+            />
+          </div>
 
               <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
+            <button
+              type="button"
                   onClick={handleBack}
-                  disabled={loading}
+              disabled={loading}
                   className="flex-1 px-4 py-2.5 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
-                >
+            >
                   Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || !name.trim()}
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !name.trim()}
                   className="flex-1 px-4 py-2.5 text-sm font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {loading ? (
+            >
+              {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 dark:border-gray-900/30 border-t-white dark:border-t-gray-900 rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
                       Create
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
           )}
 
           {/* Step: Import */}
